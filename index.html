@@ -186,6 +186,11 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
+        .overlap-card.off-day {
+            border-left-color: #17a2b8;
+            background: linear-gradient(135deg, #e0f7fa 0%, #fff 100%);
+        }
+
         .overlap-card.warning {
             border-left-color: #ffc107;
         }
@@ -241,6 +246,10 @@
             font-size: 0.9em;
         }
 
+        .overlap-duration.off-day {
+            background: #17a2b8;
+        }
+
         .no-overlaps {
             text-align: center;
             padding: 40px;
@@ -275,36 +284,23 @@
             margin-top: 5px;
         }
 
-        .airport-codes {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 15px;
-        }
-
-        .airport-code {
-            background: #667eea;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.85em;
-            font-weight: 600;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #667eea;
-            font-size: 1.2em;
-        }
-
-        .error {
-            background: #fee;
-            border: 1px solid #fcc;
-            color: #c33;
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
             padding: 15px;
-            border-radius: 6px;
-            margin: 15px 0;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .info-box strong {
+            color: #1976D2;
+        }
+
+        .section-subtitle {
+            font-size: 1.1em;
+            color: #666;
+            margin-bottom: 15px;
+            font-style: italic;
         }
 
         @media (max-width: 768px) {
@@ -323,18 +319,6 @@
             .overlap-pilots {
                 flex-direction: column;
             }
-        }
-
-        .info-box {
-            background: #e7f3ff;
-            border-left: 4px solid #2196F3;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-
-        .info-box strong {
-            color: #1976D2;
         }
     </style>
 </head>
@@ -382,9 +366,17 @@
                 </button>
             </div>
 
-            <!-- Results Section -->
+            <!-- Off Days Section -->
+            <div class="section" id="offDaysSection" style="display: none;">
+                <h2 class="section-title">🏖️ Days Off / Available / Leave Overlap</h2>
+                <p class="section-subtitle">Times when pilots are off duty on the same dates (regardless of location)</p>
+                <div id="offDaysResults" class="overlap-results"></div>
+            </div>
+
+            <!-- Location Overlap Results Section -->
             <div class="section" id="resultsSection" style="display: none;">
-                <h2 class="section-title">🎯 Overlap Opportunities</h2>
+                <h2 class="section-title">📍 Same Location Overlaps</h2>
+                <p class="section-subtitle">Times when pilots are in the same city with 30+ minutes overlap</p>
                 <div class="stats-bar" id="statsBar"></div>
                 <div id="overlapResults" class="overlap-results"></div>
             </div>
@@ -411,9 +403,12 @@
             'CNS': 'Cairns',
             'AKL': 'Auckland',
             'WLG': 'Wellington',
+            'CHC': 'Christchurch',
             'HTI': 'Hamilton Island',
             'JFK': 'New York'
         };
+
+        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
         // Load saved data on page load
         window.addEventListener('DOMContentLoaded', () => {
@@ -478,11 +473,12 @@
                 category: '',
                 base: '',
                 rosterType: '',
+                rosterStart: null,
                 schedule: []
             };
 
             // Extract pilot information
-            const nameMatch = content.match(/Name\s*:\s*([A-Z\s]+)/);
+            const nameMatch = content.match(/Name\s*:\s*([A-Z\s]+?)\s+Staff/i);
             if (nameMatch) pilot.name = nameMatch[1].trim();
 
             const staffMatch = content.match(/Staff No:\s*(\d+)/);
@@ -497,8 +493,13 @@
             const baseMatch = content.match(/Base\s*:\s*([A-Z]{3})/);
             if (baseMatch) pilot.base = baseMatch[1];
 
-            // Parse schedule
+            // Parse schedule with dates
             pilot.schedule = parseSchedule(content, pilot.rosterType);
+
+            // Find roster start date
+            if (pilot.schedule.length > 0) {
+                pilot.rosterStart = pilot.schedule[0].fullDate;
+            }
 
             // Add to pilots data
             pilotsData.push(pilot);
@@ -510,23 +511,59 @@
             const schedule = [];
             const lines = content.split('\n');
 
-            // For short haul - parse the duty roster
-            const datePattern = /^(\d{2})\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\S+)\s+(.*)\s+(\d{4})\s+(\d{4})/;
-            const datePatternDO = /^(\d{2})\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(D\/O|AV|AL|PLN|R4)/;
+            // Detect year and month from content
+            let currentYear = 2026;
+            let currentMonth = null;
 
-            // For long haul - parse the pattern details
-            const flightPattern = /^(\d{2}\/\d{2})\s+[A-Z]\s+(\S+)/;
+            // Try to find date in header
+            const headerDateMatch = content.match(/(\d{2})(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{2})/);
+            if (headerDateMatch) {
+                currentYear = 2000 + parseInt(headerDateMatch[3]);
+            }
 
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
 
-                // Short haul duty lines
-                const dutyMatch = line.match(datePattern);
-                if (dutyMatch) {
-                    const [, day, dow, duty, details, startTime, endTime] = dutyMatch;
+                // Short haul format: "DD DayOfWeek DUTY ..."
+                const shPattern = /^(\d{2})\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\S+)(.*)$/;
+                const shMatch = line.match(shPattern);
 
-                    // Extract port codes from the line
+                if (shMatch) {
+                    const [, day, dow, duty, rest] = shMatch;
+
+                    // Extract times if present
+                    const timeMatch = rest.match(/(\d{4})\s+(\d{4})/);
+                    let startTime = null;
+                    let endTime = null;
+
+                    if (timeMatch) {
+                        startTime = timeMatch[1];
+                        endTime = timeMatch[2];
+                    }
+
+                    // Extract ports
                     const ports = extractPorts(line);
+
+                    // Determine month if we haven't yet or if day wrapped
+                    if (currentMonth === null) {
+                        // First entry - try to find from flight details
+                        const flightDateMatch = content.match(new RegExp(day + '([A-Z][a-z]{2})'));
+                        if (flightDateMatch) {
+                            currentMonth = MONTHS.indexOf(flightDateMatch[1]);
+                        } else {
+                            currentMonth = 0; // Default to January
+                        }
+                    } else if (schedule.length > 0) {
+                        const prevDay = parseInt(schedule[schedule.length - 1].date);
+                        const currDay = parseInt(day);
+                        if (currDay < prevDay) {
+                            // Month rolled over
+                            currentMonth = (currentMonth + 1) % 12;
+                            if (currentMonth === 0) currentYear++;
+                        }
+                    }
+
+                    const fullDate = new Date(currentYear, currentMonth, parseInt(day));
 
                     schedule.push({
                         date: day,
@@ -535,30 +572,24 @@
                         startTime: startTime,
                         endTime: endTime,
                         ports: ports,
-                        type: 'DUTY'
+                        type: duty === 'D/O' ? 'OFF' : duty === 'AV' ? 'AVAILABLE' : duty === 'AL' ? 'LEAVE' : 'DUTY',
+                        fullDate: fullDate
                     });
                 }
 
-                // Days off, available, leave
-                const doMatch = line.match(datePatternDO);
-                if (doMatch) {
-                    const [, day, dow, type] = doMatch;
+                // Long haul format: "DD/MM D TYPE"
+                const lhPattern = /^(\d{2})\/(\d{2})\s+[A-Z]\s+(\S+)/;
+                const lhMatch = line.match(lhPattern);
+
+                if (lhMatch) {
+                    const [, day, month, type] = lhMatch;
+                    const fullDate = new Date(currentYear, parseInt(month) - 1, parseInt(day));
+
                     schedule.push({
                         date: day,
-                        dayOfWeek: dow,
                         duty: type,
-                        type: type === 'D/O' ? 'OFF' : type === 'AV' ? 'AVAILABLE' : type === 'AL' ? 'LEAVE' : 'OTHER'
-                    });
-                }
-
-                // Long haul pattern dates
-                const lhMatch = line.match(flightPattern);
-                if (lhMatch) {
-                    const [, date, type] = lhMatch;
-                    schedule.push({
-                        date: date,
-                        duty: type,
-                        type: type === 'AL' ? 'LEAVE' : type.includes('NN') || type.includes('TR') ? 'DUTY' : 'OTHER'
+                        type: type === 'AL' ? 'LEAVE' : type.includes('NN') || type.includes('TR') ? 'DUTY' : 'OTHER',
+                        fullDate: fullDate
                     });
                 }
             }
@@ -568,6 +599,15 @@
             schedule.forEach(day => {
                 if (day.type === 'DUTY' && flightDetails[day.date]) {
                     day.flights = flightDetails[day.date];
+                    // If we have flight details, extract more ports
+                    flightDetails[day.date].forEach(flight => {
+                        if (flight.from && !day.ports.includes(flight.from)) {
+                            day.ports.push(flight.from);
+                        }
+                        if (flight.to && !day.ports.includes(flight.to)) {
+                            day.ports.push(flight.to);
+                        }
+                    });
                 }
             });
 
@@ -590,18 +630,16 @@
             const flights = {};
             const lines = content.split('\n');
 
-            // Look for flight detail sections
-            const flightPattern = /(\d{2}[A-Z][a-z]{2})\s+(\d+)\s+([A-Z]{3})\s+(\d{4})\s+([A-Z]{3})\s+(\d{4})/;
+            const flightPattern = /(\d{2})([A-Z][a-z]{2})\s+(\d+)\s+([A-Z]{3})\s+(\d{4})\s+([A-Z]{3})\s+(\d{4})/;
 
             for (const line of lines) {
                 const match = line.match(flightPattern);
                 if (match) {
-                    const [, date, flightNum, from, depTime, to, arrTime] = match;
-                    const dateKey = date.substring(0, 2); // Extract day
+                    const [, day, month, flightNum, from, depTime, to, arrTime] = match;
 
-                    if (!flights[dateKey]) flights[dateKey] = [];
+                    if (!flights[day]) flights[day] = [];
 
-                    flights[dateKey].push({
+                    flights[day].push({
                         from: from,
                         to: to,
                         departure: depTime,
@@ -621,6 +659,17 @@
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 pilotsData = JSON.parse(saved);
+                // Restore Date objects
+                pilotsData.forEach(pilot => {
+                    pilot.schedule.forEach(day => {
+                        if (day.fullDate) {
+                            day.fullDate = new Date(day.fullDate);
+                        }
+                    });
+                    if (pilot.rosterStart) {
+                        pilot.rosterStart = new Date(pilot.rosterStart);
+                    }
+                });
                 updateUI();
             }
         }
@@ -641,6 +690,8 @@
 
             pilotsList.innerHTML = pilotsData.map(pilot => {
                 const savedLocation = getSavedLocation(pilot.id);
+                const startDate = pilot.rosterStart ? pilot.rosterStart.toLocaleDateString('en-AU', {day: 'numeric', month: 'short', year: 'numeric'}) : 'Unknown';
+
                 return `
                     <div class="pilot-card">
                         <div class="pilot-name">${pilot.name || 'Unknown'}</div>
@@ -648,6 +699,7 @@
                             <div>Staff #: ${pilot.staffNo}</div>
                             <div>Type: ${pilot.rosterType}</div>
                             <div>Base: ${pilot.base}</div>
+                            <div>Roster Start: ${startDate}</div>
                             <div>Schedule: ${pilot.schedule.length} days</div>
                         </div>
                         <div class="pilot-location">
@@ -685,6 +737,7 @@
             saveData();
             updateUI();
             document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('offDaysSection').style.display = 'none';
         }
 
         function clearAllData() {
@@ -694,15 +747,64 @@
                 localStorage.removeItem(LOCATIONS_KEY);
                 updateUI();
                 document.getElementById('resultsSection').style.display = 'none';
+                document.getElementById('offDaysSection').style.display = 'none';
             }
         }
 
         function analyzeOverlaps() {
-            const overlaps = findOverlaps();
-            displayOverlaps(overlaps);
+            const offDayOverlaps = findOffDayOverlaps();
+            const locationOverlaps = findLocationOverlaps();
+
+            displayOffDayOverlaps(offDayOverlaps);
+            displayLocationOverlaps(locationOverlaps);
         }
 
-        function findOverlaps() {
+        function findOffDayOverlaps() {
+            const overlaps = [];
+
+            // Create date map for off days
+            const dateMap = {};
+
+            pilotsData.forEach(pilot => {
+                pilot.schedule.forEach(day => {
+                    if (day.type === 'OFF' || day.type === 'AVAILABLE' || day.type === 'LEAVE') {
+                        const dateKey = day.fullDate.toISOString().split('T')[0];
+
+                        if (!dateMap[dateKey]) {
+                            dateMap[dateKey] = [];
+                        }
+
+                        dateMap[dateKey].push({
+                            pilot: pilot,
+                            day: day,
+                            status: day.type
+                        });
+                    }
+                });
+            });
+
+            // Find overlaps (2+ pilots off on same day)
+            Object.entries(dateMap).forEach(([dateKey, pilots]) => {
+                if (pilots.length < 2) return;
+
+                // Create all combinations of pilot pairs
+                for (let i = 0; i < pilots.length; i++) {
+                    for (let j = i + 1; j < pilots.length; j++) {
+                        overlaps.push({
+                            date: new Date(dateKey),
+                            pilots: [pilots[i], pilots[j]]
+                        });
+                    }
+                }
+            });
+
+            // Sort by date
+            overlaps.sort((a, b) => a.date - b.date);
+
+            return overlaps;
+        }
+
+        function findLocationOverlaps() {
             const overlaps = [];
             const locationMap = {};
 
@@ -711,36 +813,29 @@
                 const homeLocation = getSavedLocation(pilot.id);
 
                 pilot.schedule.forEach(day => {
-                    let location = null;
+                    let locations = [];
                     let startTime = null;
                     let endTime = null;
                     let status = '';
 
                     if (day.type === 'OFF' || day.type === 'AVAILABLE' || day.type === 'LEAVE') {
-                        location = homeLocation;
-                        startTime = '0000';
-                        endTime = '2359';
-                        status = day.type;
-                    } else if (day.type === 'DUTY' && day.ports) {
-                        // For duty days, check each port
-                        day.ports.forEach(port => {
-                            const key = `${day.date}-${port}`;
-                            if (!locationMap[key]) locationMap[key] = [];
-
-                            locationMap[key].push({
-                                pilot: pilot,
-                                day: day,
-                                location: port,
-                                startTime: day.startTime || '0000',
-                                endTime: day.endTime || '2359',
-                                status: 'DUTY'
-                            });
-                        });
-                        return;
+                        if (homeLocation) {
+                            locations = [homeLocation];
+                            startTime = '0000';
+                            endTime = '2359';
+                            status = day.type;
+                        }
+                    } else if (day.type === 'DUTY' && day.ports && day.ports.length > 0) {
+                        locations = day.ports;
+                        startTime = day.startTime || '0000';
+                        endTime = day.endTime || '2359';
+                        status = 'DUTY';
                     }
 
-                    if (location) {
-                        const key = `${day.date}-${location}`;
+                    locations.forEach(location => {
+                        const dateKey = day.fullDate.toISOString().split('T')[0];
+                        const key = `${dateKey}-${location}`;
+
                         if (!locationMap[key]) locationMap[key] = [];
 
                         locationMap[key].push({
@@ -751,7 +846,7 @@
                             endTime: endTime,
                             status: status
                         });
-                    }
+                    });
                 });
             });
 
@@ -759,14 +854,16 @@
             Object.entries(locationMap).forEach(([key, pilots]) => {
                 if (pilots.length < 2) return;
 
-                // Check for time overlap
+                const [dateKey, location] = key.split('-');
+
+                // Check for time overlap between all pilot pairs
                 for (let i = 0; i < pilots.length; i++) {
                     for (let j = i + 1; j < pilots.length; j++) {
                         const overlap = calculateOverlap(pilots[i], pilots[j]);
                         if (overlap && overlap.minutes >= 30) {
                             overlaps.push({
-                                date: pilots[i].day.date,
-                                location: pilots[i].location,
+                                date: new Date(dateKey),
+                                location: location,
                                 pilots: [pilots[i], pilots[j]],
                                 overlapMinutes: overlap.minutes,
                                 overlapStart: overlap.start,
@@ -778,16 +875,14 @@
             });
 
             // Sort by date
-            overlaps.sort((a, b) => {
-                const dateA = parseInt(a.date);
-                const dateB = parseInt(b.date);
-                return dateA - dateB;
-            });
+            overlaps.sort((a, b) => a.date - b.date);
 
             return overlaps;
         }
 
         function calculateOverlap(pilot1, pilot2) {
+            if (!pilot1.startTime || !pilot2.startTime) return null;
+
             const start1 = parseInt(pilot1.startTime);
             const end1 = parseInt(pilot1.endTime);
             const start2 = parseInt(pilot2.startTime);
@@ -813,7 +908,48 @@
             };
         }
 
-        function displayOverlaps(overlaps) {
+        function displayOffDayOverlaps(overlaps) {
+            const offDaysSection = document.getElementById('offDaysSection');
+            const offDaysResults = document.getElementById('offDaysResults');
+
+            if (overlaps.length === 0) {
+                offDaysSection.style.display = 'none';
+                return;
+            }
+
+            offDaysSection.style.display = 'block';
+
+            offDaysResults.innerHTML = overlaps.map(overlap => {
+                const dateStr = overlap.date.toLocaleDateString('en-AU', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                });
+
+                return `
+                    <div class="overlap-card off-day">
+                        <div class="overlap-date">📅 ${dateStr}</div>
+                        <div class="overlap-pilots">
+                            ${overlap.pilots.map(p => `
+                                <div class="pilot-schedule">
+                                    <div class="pilot-schedule-name">${p.pilot.name}</div>
+                                    <div class="pilot-schedule-time">
+                                        ${p.status} - All Day
+                                        ${p.status === 'OFF' ? '(Day Off)' : p.status === 'AVAILABLE' ? '(Available)' : '(Annual Leave)'}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div>
+                            <span class="overlap-duration off-day">⏱️ Full Day Overlap</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function displayLocationOverlaps(overlaps) {
             const resultsSection = document.getElementById('resultsSection');
             const statsBar = document.getElementById('statsBar');
             const overlapResults = document.getElementById('overlapResults');
@@ -821,13 +957,13 @@
             resultsSection.style.display = 'block';
 
             // Display stats
-            const uniqueDates = new Set(overlaps.map(o => o.date)).size;
+            const uniqueDates = new Set(overlaps.map(o => o.date.toISOString().split('T')[0])).size;
             const uniqueLocations = new Set(overlaps.map(o => o.location)).size;
 
             statsBar.innerHTML = `
                 <div class="stat">
                     <div class="stat-number">${overlaps.length}</div>
-                    <div class="stat-label">Total Overlaps</div>
+                    <div class="stat-label">Location Overlaps</div>
                 </div>
                 <div class="stat">
                     <div class="stat-number">${uniqueDates}</div>
@@ -840,7 +976,7 @@
             `;
 
             if (overlaps.length === 0) {
-                overlapResults.innerHTML = '<div class="no-overlaps">No overlaps found with at least 30 minutes. Try adjusting pilot locations for days off.</div>';
+                overlapResults.innerHTML = '<div class="no-overlaps">No location overlaps found with at least 30 minutes. Try setting pilot home locations for days off.</div>';
                 return;
             }
 
@@ -849,9 +985,16 @@
                 const mins = overlap.overlapMinutes % 60;
                 const durationText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 
+                const dateStr = overlap.date.toLocaleDateString('en-AU', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                });
+
                 return `
                     <div class="overlap-card">
-                        <div class="overlap-date">📅 Day ${overlap.date}</div>
+                        <div class="overlap-date">📅 ${dateStr}</div>
                         <div class="overlap-location">📍 ${AIRPORT_NAMES[overlap.location] || overlap.location}</div>
                         <div class="overlap-pilots">
                             ${overlap.pilots.map(p => `
@@ -879,6 +1022,7 @@
         }
 
         function formatTime(time) {
+            if (!time) return 'N/A';
             const timeStr = time.toString().padStart(4, '0');
             return `${timeStr.substring(0, 2)}:${timeStr.substring(2)}`;
         }
