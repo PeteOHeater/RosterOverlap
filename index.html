@@ -159,11 +159,10 @@ h1 em{font-style:normal;color:var(--accent);}
 <div class="page">
   <header class="site-header">
     <div>
-      <div class="header-eyebrow">Qantas Short Haul · Flight Crew</div>
       <h1>Roster<br><em>Overlap</em> Finder</h1>
-      <p class="header-sub">Upload ARMS .txt roster files. Find every moment two crew are in the same port — from a 20-minute turnaround to a full day off together.</p>
+      <p class="header-sub">Use your WEBCIS "Send My Roster" function and upload your rosters here to find an overlap with other crew.</p>
     </div>
-    <div><div class="bid-tag">BID PERIOD 3735 · FEB 23 – MAR 22 2026</div></div>
+    <div><div class="bid-tag" id="bid-tag">Upload rosters to begin</div></div>
   </header>
 
   <div id="upload-grid" class="upload-grid"></div>
@@ -186,10 +185,19 @@ const COLOURS=['#38bdf8','#fb923c','#a78bfa','#34d399','#fbbf24','#f472b6'];
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const PORT_NAMES={ADL:'Adelaide',MEL:'Melbourne',SYD:'Sydney',BNE:'Brisbane',PER:'Perth',OOL:'Gold Coast',AKL:'Auckland',WLG:'Wellington',CBR:'Canberra',HBA:'Hobart',TSV:'Townsville',CNS:'Cairns',DRW:'Darwin',NTL:'Newcastle',MCY:'Sunshine Coast',MKY:'Mackay',ROK:'Rockhampton'};
-const BP_START=new Date(2026,1,23);
-const BP_END=new Date(2026,2,22);
+let BP_START=null;
+let BP_END=null;
+let BP_NUM='';
 
 let pilots=[];
+
+function updateBidTag(){
+  const el=document.getElementById('bid-tag');
+  if(!el||!BP_START||!BP_END)return;
+  const fmt=d=>d.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+  el.textContent=`BID PERIOD ${BP_NUM} · ${fmt(BP_START).toUpperCase()} – ${fmt(BP_END).toUpperCase()}`;
+}
+
 const mins2t=m=>{const h=Math.floor(((m%1440)+1440)%1440/60),n=((m%1440)+1440)%1440%60;return`${String(h).padStart(2,'0')}:${String(n).padStart(2,'0')}`;};
 const t2mins=s=>parseInt(s.slice(0,2))*60+parseInt(s.slice(2,4));
 const dateKey=d=>`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -208,17 +216,57 @@ function parseRoster(text,colour){
   if(!name)throw new Error('Pilot name not found');
   if(!base)throw new Error('Pilot base not found');
 
-  // Parse duty table
+  // Extract bid period number and date bounds from file
+  let bpNum='', bpStartDate=null, bpEndDate=null, fileYear=new Date().getFullYear();
+  for(const l of lines){
+    const bpn=l.match(/Bid Period\s+(\d+)/);if(bpn)bpNum=bpn[1];
+    // "Available Date/Time this (next) BP : 23Feb26 2243 (23Mar26 1415)"
+    const avail=l.match(/Available Date\/Time this.*?:\s*(\d{2})([A-Za-z]{3})(\d{2})\s+\d+\s+\((\d{2})([A-Za-z]{3})(\d{2})/);
+    if(avail){
+      const yr1=2000+parseInt(avail[3]),mon1=MONTHS.findIndex(m=>m.toLowerCase()===avail[2].toLowerCase());
+      const yr2=2000+parseInt(avail[6]),mon2=MONTHS.findIndex(m=>m.toLowerCase()===avail[5].toLowerCase());
+      bpStartDate=new Date(yr1,mon1,parseInt(avail[1]));
+      bpEndDate=new Date(yr2,mon2,parseInt(avail[4])-1); // end is start of NEXT bp, so -1 day
+      fileYear=yr1;
+    }
+  }
+  // Update global bid period if not yet set (use first loaded roster)
+  if(bpStartDate&&!BP_START){
+    BP_START=bpStartDate; BP_END=bpEndDate; BP_NUM=bpNum;
+    updateBidTag();
+  }
+
+  // Build a helper: given day-of-month, figure out actual date using BP_START context
+  function resolveDate(dayNum){
+    if(!BP_START)return new Date(fileYear,1,dayNum); // fallback
+    // Walk through the bid period and find the date matching this dayNum
+    for(let d=new Date(BP_START);d<=new Date(BP_END.getTime()+86400000*2);d.setDate(d.getDate()+1)){
+      if(d.getDate()===dayNum){
+        // Return a copy, but we need to be careful about ambiguity (day 1-28 could appear twice in a long period)
+        // Use the roster table order to disambiguate - handled below
+        return new Date(d);
+      }
+    }
+    return new Date(fileYear,BP_START.getMonth(),dayNum);
+  }
+
+  // Parse duty table - walk sequentially to resolve month correctly
   const duties=[];
   let inTable=false;
+  let lastDayNum=-1, currentMonth=BP_START?BP_START.getMonth():1, currentYear=BP_START?BP_START.getFullYear():fileYear;
   for(const l of lines){
     if(l.match(/^-{40,}/)){inTable=!inTable;continue;}
     if(!inTable)continue;
     const m=l.match(/^\s*(\d{2})\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(.*)/);
     if(!m)continue;
     const dn=parseInt(m[1]),rest=m[3].trim();
-    const month=dn>=23?1:2;
-    const date=new Date(2026,month,dn);
+    // Detect month rollover: if dayNum drops significantly, we've crossed into next month
+    if(lastDayNum>20&&dn<10){
+      currentMonth++;
+      if(currentMonth>11){currentMonth=0;currentYear++;}
+    }
+    lastDayNum=dn;
+    const date=new Date(currentYear,currentMonth,dn);
     let dutyType='UNKNOWN';
     if(rest.match(/^D\/O/))dutyType='DO';
     else if(rest.match(/^AV/))dutyType='DO';
@@ -236,7 +284,11 @@ function parseRoster(text,colour){
     if(!inPats)continue;
     const lm=l.match(/^\s*(\d{2})(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{3,4})\s+([A-Z]{3})\s+(\d{4})\s+([A-Z]{3})\s+(\d{4})/);
     if(lm){
-      legs.push({date:new Date(2026,MONTHS.indexOf(lm[2]),parseInt(lm[1])),flt:lm[3],dep:lm[4],depM:t2mins(lm[5]),arr:lm[6],arrM:t2mins(lm[7])});
+      const mon=MONTHS.indexOf(lm[2]);
+      // Determine year: if month is before BP_START month (wrapped), use next year
+      let yr=BP_START?BP_START.getFullYear():fileYear;
+      if(BP_START&&mon<BP_START.getMonth()&&BP_START.getMonth()>9)yr++;
+      legs.push({date:new Date(yr,mon,parseInt(lm[1])),flt:lm[3],dep:lm[4],depM:t2mins(lm[5]),arr:lm[6],arrM:t2mins(lm[7])});
       continue;
     }
     const rm=l.match(/\s*Rpt\s+(\d{4})\s+Rls\s+(\d{4})\s*(.*)/);
@@ -354,7 +406,13 @@ function renderUploadGrid(){
 }
 
 function removePilot(i){pilots.splice(i,1);renderUploadGrid();document.getElementById('results').classList.remove('show');}
-function clearAll(){pilots=[];renderUploadGrid();document.getElementById('results').classList.remove('show');document.getElementById('error-box').innerHTML='';}
+function clearAll(){
+  pilots=[];BP_START=null;BP_END=null;BP_NUM='';
+  renderUploadGrid();
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('error-box').innerHTML='';
+  document.getElementById('bid-tag').textContent='Upload rosters to begin';
+}
 
 function loadFile(e){
   const file=e.target.files[0];if(!file)return;
@@ -456,7 +514,9 @@ function renderCalendar(idx){
   table.appendChild(hdr);
 
   let lastMonth=-1;
-  for(let d=new Date(BP_START);d<=BP_END;d.setDate(d.getDate()+1)){
+  const calStart=BP_START||new Date(2026,1,23);
+  const calEnd=BP_END||new Date(2026,2,22);
+  for(let d=new Date(calStart);d<=calEnd;d.setDate(d.getDate()+1)){
     const date=new Date(d);
     if(date.getMonth()!==lastMonth){
       lastMonth=date.getMonth();
@@ -512,7 +572,7 @@ function renderSummary(idx){
   sec.innerHTML=`<div class="section-head"><div class="section-head-title">Overlap Summary</div><div class="section-head-line"></div></div><div class="summary-list" id="sum-list"></div>`;
   const list=document.getElementById('sum-list');
   if(!pair.ovs.length){
-    list.innerHTML=`<div class="no-overlap-msg"><div class="icon">✈</div><h3>No overlaps found</h3><p>These two pilots are never in the same port at the same time during bid 3735.</p></div>`;
+    list.innerHTML=`<div class="no-overlap-msg"><div class="icon">✈</div><h3>No overlaps found</h3><p>These two pilots are never in the same port at the same time during bid period ${BP_NUM||''}.</p></div>`;
     return;
   }
   for(const ov of pair.ovs){
@@ -537,7 +597,7 @@ function renderSummary(idx){
     list.appendChild(card);
   }
   const tot=document.createElement('div');tot.className='summary-total';
-  tot.innerHTML=`Total: <strong>${fmtDur(pair.totalMins)}</strong> across <strong>${pair.ovs.length}</strong> window${pair.ovs.length!==1?'s':''} in bid 3735`;
+  tot.innerHTML=`Total: <strong>${fmtDur(pair.totalMins)}</strong> across <strong>${pair.ovs.length}</strong> window${pair.ovs.length!==1?'s':''} in bid period ${BP_NUM||''}`;
   list.appendChild(tot);
 }
 
