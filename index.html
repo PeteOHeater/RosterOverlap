@@ -10,7 +10,6 @@
   --bg: #080b10;
   --surface: #0f1219;
   --surface2: #161b24;
-  --surface3: #1c2230;
   --border: #232a38;
   --border2: #2d3548;
   --accent: #38bdf8;
@@ -29,130 +28,193 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;min-height:100vh;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.6;min-height:100vh;}
 body::after{content:'';position:fixed;top:-40%;left:-20%;width:80vw;height:80vw;background:radial-gradient(ellipse,rgba(56,189,248,0.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
 .page{max-width:1280px;margin:0 auto;padding:0 24px;position:relative;z-index:1;}
 
 /* Header */
 .site-header{padding:56px 0 40px;border-bottom:1px solid var(--border);margin-bottom:48px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;}
-.header-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
-.header-eyebrow::before{content:'';display:inline-block;width:24px;height:1px;background:var(--accent);}
-h1{font-size:clamp(32px,5vw,56px);font-weight:700;letter-spacing:-2px;line-height:1.05;}
+h1{font-size:clamp(36px,5vw,58px);font-weight:700;letter-spacing:-2px;line-height:1.05;}
 h1 em{font-style:normal;color:var(--accent);}
-.header-sub{margin-top:10px;color:var(--text2);font-size:15px;max-width:420px;}
-.bid-tag{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:6px 14px;border-radius:20px;border:1px solid var(--border2);color:var(--text2);}
+.header-sub{margin-top:12px;color:var(--text2);font-size:17px;line-height:1.5;max-width:480px;}
+.bid-tag{display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:1px;padding:7px 16px;border-radius:20px;border:1px solid var(--border2);color:var(--text2);}
 
 /* Upload */
 .upload-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:32px;}
-.upload-slot{background:var(--surface);border:1px dashed var(--border2);border-radius:14px;padding:28px 24px 24px;cursor:pointer;position:relative;transition:border-color .2s,background .2s,transform .15s;overflow:hidden;min-height:130px;}
+.upload-slot{background:var(--surface);border:1px dashed var(--border2);border-radius:14px;padding:28px 24px 24px;cursor:pointer;position:relative;transition:border-color .2s,background .2s,transform .15s;overflow:hidden;min-height:140px;}
 .upload-slot:hover{border-color:var(--accent);background:rgba(56,189,248,.03);transform:translateY(-1px);}
 .upload-slot.loaded{border-style:solid;cursor:default;}
 .upload-slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:2;}
 .upload-slot.loaded input[type=file]{display:none;}
-.upload-slot-icon{font-size:28px;margin-bottom:10px;}
-.upload-slot-title{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;}
-.upload-slot-hint{font-size:13px;color:var(--text3);}
+.upload-slot-icon{font-size:30px;margin-bottom:10px;}
+.upload-slot-title{font-family:var(--mono);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
 .loaded-info{margin-top:10px;}
-.pilot-name-display{font-weight:600;font-size:16px;margin-bottom:2px;}
-.pilot-meta{font-family:var(--mono);font-size:11px;color:var(--text2);}
-.remove-btn{position:absolute;top:12px;right:12px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);color:var(--red);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;z-index:3;font-family:var(--mono);transition:all .15s;}
+.pilot-name-display{font-weight:600;font-size:18px;margin-bottom:4px;}
+.pilot-meta{font-family:var(--mono);font-size:12px;color:var(--text2);}
+.remove-btn{position:absolute;top:12px;right:12px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);color:var(--red);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;z-index:3;font-family:var(--mono);transition:all .15s;}
 .remove-btn:hover{background:rgba(248,113,113,.2);}
-.add-slot{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text3);font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;text-align:center;}
-.add-slot-icon{font-size:24px;}
+.add-slot{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text3);font-family:var(--mono);font-size:12px;letter-spacing:1px;text-transform:uppercase;text-align:center;}
+.add-slot-icon{font-size:28px;}
 
 /* Controls */
 .controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:48px;}
-.btn{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:11px 22px;border-radius:8px;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);transition:all .15s;}
+.btn{font-family:var(--mono);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;padding:12px 24px;border-radius:8px;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);transition:all .15s;}
 .btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
 .btn:disabled{opacity:.3;pointer-events:none;}
 .btn-primary{background:var(--accent);color:#080b10;border-color:var(--accent);font-weight:700;box-shadow:0 0 20px rgba(56,189,248,.2);}
 .btn-primary:hover:not(:disabled){background:#7dd3fc;border-color:#7dd3fc;color:#080b10;}
-.error-box{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--red);font-family:var(--mono);}
+.error-box{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:8px;padding:14px 18px;margin-bottom:24px;font-size:14px;color:var(--red);font-family:var(--mono);}
 
 /* Results */
 #results{display:none;}
 #results.show{display:block;}
 
 /* Stats */
-.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:40px;}
-.stat-tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
-.stat-tile-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
-.stat-tile-value{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1;}
-.stat-tile-sub{font-size:11px;color:var(--text3);margin-top:4px;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:40px;}
+.stat-tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;}
+.stat-tile-label{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
+.stat-tile-value{font-family:var(--mono);font-size:32px;font-weight:700;line-height:1;}
+.stat-tile-sub{font-size:12px;color:var(--text3);margin-top:4px;}
 
 /* Section heading */
 .section-head{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
-.section-head-title{font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--text3);white-space:nowrap;}
+.section-head-title{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--text3);white-space:nowrap;}
 .section-head-line{flex:1;height:1px;background:var(--border);}
 
 /* Pair tabs */
 .pair-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px;}
-.pair-tab{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text3);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px;}
+.pair-tab{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:9px 18px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text3);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px;}
 .pair-tab:hover{border-color:var(--border2);color:var(--text2);}
 .pair-tab.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
-.pair-count{opacity:.5;font-size:9px;}
+.pair-count{opacity:.5;font-size:10px;}
 
 /* Legend */
-.legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
-.legend-item{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.5px;}
-.legend-swatch{width:10px;height:10px;border-radius:2px;}
-.legend-dot{width:10px;height:10px;border-radius:50%;}
+.legend{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;}
+.legend-item{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:.5px;}
+.legend-swatch{width:12px;height:12px;border-radius:2px;}
+.legend-dot{width:11px;height:11px;border-radius:50%;}
 
 /* Calendar */
 .cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:40px;}
 .cal-scroll{overflow-x:auto;}
-.cal-table{min-width:720px;width:100%;}
-.cal-head{display:grid;background:var(--surface2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);}
-.cal-head .ch{padding:10px 16px;}
-.month-row{padding:7px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);}
+.cal-table{min-width:760px;width:100%;}
+.cal-head{display:grid;background:var(--surface2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);}
+.cal-head .ch{padding:12px 18px;}
+.month-row{padding:8px 18px;background:var(--surface2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);}
 .cal-row{display:grid;border-bottom:1px solid var(--border);transition:background .1s;}
 .cal-row:last-child{border-bottom:none;}
 .cal-row:hover{background:rgba(255,255,255,.015);}
 .cal-row.has-overlap{background:rgba(52,211,153,.03);}
 .cal-row.has-overlap:hover{background:rgba(52,211,153,.05);}
-.cell{padding:10px 16px;border-right:1px solid var(--border);}
+.cell{padding:12px 18px;border-right:1px solid var(--border);}
 .cell:last-child{border-right:none;}
 .cell-date{min-width:90px;}
-.date-num{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1;color:var(--text);}
-.date-day{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
-.cell-pilot{display:flex;flex-direction:column;gap:3px;min-width:0;}
-.duty-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:4px;font-family:var(--mono);font-size:10px;font-weight:700;white-space:nowrap;letter-spacing:.3px;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+.date-num{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1;color:var(--text);}
+.date-day{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-top:3px;}
+.cell-pilot{display:flex;flex-direction:column;gap:4px;min-width:0;}
+
+/* Duty tag — bigger and clearer */
+.duty-tag{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:5px;font-family:var(--mono);font-size:12px;font-weight:700;white-space:nowrap;letter-spacing:.3px;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .duty-tag.type-fly{background:rgba(56,189,248,.12);color:var(--accent);}
 .duty-tag.type-off{background:rgba(71,85,105,.2);color:var(--text3);}
 .duty-tag.type-leave{background:rgba(167,139,250,.12);color:var(--purple);}
 .duty-tag.type-rsv{background:rgba(251,191,36,.1);color:var(--yellow);}
 .duty-tag.type-ground{background:rgba(56,189,248,.07);color:#7dd3fc;}
 .duty-tag.type-unknown{color:var(--text3);}
-.duty-sub{font-size:10px;color:var(--text3);font-family:var(--mono);padding-left:2px;}
+
+/* Pattern route — the full route string shown below the tag */
+.pattern-route{font-size:12px;color:var(--text2);font-family:var(--mono);padding-left:2px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+
 .cell-overlap{min-width:185px;display:flex;flex-direction:column;gap:5px;}
-.overlap-none{color:var(--border2);font-size:20px;display:flex;align-items:center;height:100%;}
-.ov-block{background:var(--green-dim);border:1px solid rgba(52,211,153,.2);border-radius:6px;padding:6px 10px;}
-.ov-port{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green);}
-.ov-time{font-family:var(--mono);font-size:10px;color:#6ee7b7;}
-.ov-dur{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:1px;}
+.overlap-none{color:var(--border2);font-size:22px;display:flex;align-items:center;height:100%;}
+.ov-block{background:var(--green-dim);border:1px solid rgba(52,211,153,.2);border-radius:6px;padding:7px 12px;}
+.ov-port{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--green);}
+.ov-time{font-family:var(--mono);font-size:12px;color:#6ee7b7;margin-top:1px;}
+.ov-dur{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:2px;}
 
 /* Summary */
 .summary-list{margin-bottom:60px;}
-.summary-card{display:flex;gap:20px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:12px;padding:18px 20px;margin-bottom:10px;transition:border-color .15s,background .15s;}
+.summary-card{display:flex;gap:20px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:12px;padding:20px 22px;margin-bottom:12px;transition:border-color .15s,background .15s;}
 .summary-card:hover{background:var(--surface2);}
 .sum-left{flex:1;min-width:0;}
-.sum-date{font-family:var(--mono);font-size:12px;color:var(--accent);margin-bottom:4px;}
-.sum-port{font-size:17px;font-weight:600;margin-bottom:4px;}
-.sum-port span{font-size:13px;font-weight:400;color:var(--text2);margin-left:8px;}
-.sum-window{font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:6px;}
-.sum-pilots{display:flex;flex-direction:column;gap:3px;}
-.sum-pilot-line{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px;}
-.sum-pilot-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sum-date{font-family:var(--mono);font-size:13px;color:var(--accent);margin-bottom:4px;}
+.sum-port{font-size:20px;font-weight:600;margin-bottom:4px;}
+.sum-port span{font-size:15px;font-weight:400;color:var(--text2);margin-left:8px;}
+.sum-window{font-family:var(--mono);font-size:13px;color:var(--text2);margin-bottom:8px;}
+.sum-pilots{display:flex;flex-direction:column;gap:5px;}
+.sum-pilot-line{font-size:14px;color:var(--text2);display:flex;align-items:flex-start;gap:8px;}
+.sum-pilot-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:6px;}
+.sum-pilot-text{display:flex;flex-direction:column;gap:1px;}
+.sum-pilot-name{font-weight:600;color:var(--text);}
+.sum-pilot-pattern{font-family:var(--mono);font-size:12px;color:var(--text3);}
 .sum-right{text-align:right;flex-shrink:0;}
-.sum-dur{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--green);line-height:1;}
-.sum-dur-label{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-top:4px;}
-.summary-total{text-align:right;padding:12px 20px;font-family:var(--mono);font-size:12px;color:var(--text3);}
+.sum-dur{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--green);line-height:1;}
+.sum-dur-label{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-top:4px;}
+.summary-total{text-align:right;padding:12px 22px;font-family:var(--mono);font-size:13px;color:var(--text3);}
 .summary-total strong{color:var(--green);}
 .no-overlap-msg{text-align:center;padding:60px 40px;background:var(--surface);border:1px solid var(--border);border-radius:14px;}
-.no-overlap-msg .icon{font-size:40px;margin-bottom:12px;}
-.no-overlap-msg h3{font-size:18px;font-weight:600;margin-bottom:8px;}
-.no-overlap-msg p{color:var(--text2);font-size:14px;}
-@media(max-width:600px){h1{letter-spacing:-1px;}.site-header{padding:32px 0 24px;}.summary-card{flex-direction:column;}.sum-right{text-align:left;}}
+.no-overlap-msg .icon{font-size:44px;margin-bottom:12px;}
+.no-overlap-msg h3{font-size:20px;font-weight:600;margin-bottom:8px;}
+.no-overlap-msg p{color:var(--text2);font-size:16px;}
+@media print {
+  body { background: #fff !important; color: #000 !important; font-size: 11pt; }
+  body::after { display: none; }
+  .page { max-width: 100%; padding: 0; }
+  .site-header { padding: 16pt 0 12pt; border-bottom: 1pt solid #ccc; margin-bottom: 20pt; }
+  h1 { font-size: 22pt; color: #000; letter-spacing: -1px; }
+  h1 em { color: #0077aa; }
+  .header-sub { color: #444; font-size: 10pt; }
+  .bid-tag { border: 1pt solid #ccc; color: #444; font-size: 9pt; }
+  .upload-grid, .controls, #error-box { display: none !important; }
+  .stats-row { gap: 8pt; margin-bottom: 20pt; }
+  .stat-tile { background: #f5f5f5 !important; border: 1pt solid #ddd !important; border-radius: 6pt; padding: 10pt 14pt; }
+  .stat-tile-label { color: #666; font-size: 8pt; }
+  .stat-tile-value { font-size: 20pt; color: #000; }
+  .stat-tile-value[style*="accent"] { color: #0077aa !important; }
+  .stat-tile-value[style*="green"] { color: #007a4d !important; }
+  .stat-tile-value[style*="orange"] { color: #c04d00 !important; }
+  .stat-tile-value[style*="purple"] { color: #5b2d8e !important; }
+  .stat-tile-sub { color: #888; font-size: 9pt; }
+  .pair-tabs { display: none !important; }
+  .section-head-title { color: #888; font-size: 8pt; }
+  .section-head-line { background: #ccc; }
+  .legend-item { color: #555; font-size: 9pt; }
+  .cal-wrap { border: 1pt solid #ccc; border-radius: 4pt; }
+  .cal-head { background: #f0f0f0 !important; }
+  .cal-head .ch { color: #555; font-size: 8pt; padding: 6pt 10pt; }
+  .month-row { background: #e8f4fb !important; color: #0077aa; font-size: 8pt; padding: 5pt 10pt; }
+  .cal-row { background: #fff !important; }
+  .cal-row.has-overlap { background: #f0faf5 !important; }
+  .cell { padding: 6pt 10pt; border-right: 1pt solid #eee; }
+  .date-num { font-size: 14pt; color: #000; }
+  .date-day { font-size: 7pt; color: #888; }
+  .duty-tag { font-size: 8pt; padding: 2pt 6pt; }
+  .duty-tag.type-fly { background: #e8f4fb !important; color: #0077aa !important; border-left-color: #0077aa !important; }
+  .duty-tag.type-off { background: #f0f0f0 !important; color: #666 !important; }
+  .duty-tag.type-leave { background: #f3eeff !important; color: #5b2d8e !important; }
+  .duty-tag.type-rsv { background: #fffbe6 !important; color: #7a5800 !important; }
+  .pattern-route { font-size: 8pt; color: #444; }
+  .ov-block { background: #f0faf5 !important; border: 1pt solid #a3d9bf !important; border-radius: 3pt; padding: 4pt 7pt; }
+  .ov-port { color: #007a4d; font-size: 11pt; }
+  .ov-time { color: #007a4d; font-size: 9pt; }
+  .ov-dur { color: #666; font-size: 8pt; }
+  .overlap-none { color: #ddd; }
+  .summary-card { background: #fff !important; border: 1pt solid #ccc !important; border-left: 3pt solid #007a4d !important; border-radius: 4pt; padding: 10pt 14pt; margin-bottom: 8pt; break-inside: avoid; }
+  .sum-date { color: #0077aa; font-size: 10pt; }
+  .sum-port { font-size: 15pt; color: #000; }
+  .sum-port span { color: #555; font-size: 11pt; }
+  .sum-window { color: #444; font-size: 10pt; }
+  .sum-pilot-name { color: #000; }
+  .sum-pilot-pattern { color: #555; font-size: 9pt; }
+  .sum-dur { color: #007a4d; font-size: 20pt; }
+  .sum-dur-label { color: #888; font-size: 8pt; }
+  .summary-total { color: #555; font-size: 10pt; }
+  .summary-total strong { color: #007a4d; }
+  .no-overlap-msg { border: 1pt solid #ccc !important; background: #fafafa !important; }
+  .no-overlap-msg h3, .no-overlap-msg p { color: #444; }
+  @page { margin: 15mm 12mm; size: A4; }
+}
+
 </style>
 </head>
 <body>
@@ -168,6 +230,7 @@ h1 em{font-style:normal;color:var(--accent);}
   <div id="upload-grid" class="upload-grid"></div>
   <div class="controls">
     <button class="btn btn-primary" id="analyseBtn" onclick="analyse()" disabled>Analyse Overlaps</button>
+    <button class="btn" id="printBtn" onclick="printReport()" style="display:none">⎙ Save as PDF</button>
     <button class="btn" onclick="clearAll()">Clear All</button>
   </div>
   <div id="error-box"></div>
@@ -185,10 +248,7 @@ const COLOURS=['#38bdf8','#fb923c','#a78bfa','#34d399','#fbbf24','#f472b6'];
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const PORT_NAMES={ADL:'Adelaide',MEL:'Melbourne',SYD:'Sydney',BNE:'Brisbane',PER:'Perth',OOL:'Gold Coast',AKL:'Auckland',WLG:'Wellington',CBR:'Canberra',HBA:'Hobart',TSV:'Townsville',CNS:'Cairns',DRW:'Darwin',NTL:'Newcastle',MCY:'Sunshine Coast',MKY:'Mackay',ROK:'Rockhampton'};
-let BP_START=null;
-let BP_END=null;
-let BP_NUM='';
-
+let BP_START=null,BP_END=null,BP_NUM='';
 let pilots=[];
 
 function updateBidTag(){
@@ -205,6 +265,19 @@ function fmtDur(m){const h=Math.floor(Math.abs(m)/60),n=Math.round(Math.abs(m)%6
 function datePlusMins(date,mins){const d=new Date(date);d.setHours(0,0,0,0);return new Date(d.getTime()+mins*60000);}
 function msmid(date){return date.getHours()*60+date.getMinutes();}
 
+// Build the route string for a pattern: e.g. "ADL→SYD→OOL→SYD→ADL"
+function patternRoute(pat){
+  const ports=[pat.legs[0].dep,...pat.legs.map(l=>l.arr)];
+  return ports.join('→');
+}
+
+// Build a human-readable pattern label for the summary
+function patternLabel(pat, pilot){
+  const route=patternRoute(pat);
+  const dateStr=pat.startDate.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+  return`${dateStr}: ${route}`;
+}
+
 function parseRoster(text,colour){
   const lines=text.split('\n');
   let name='',base='',staffNo='';
@@ -216,55 +289,30 @@ function parseRoster(text,colour){
   if(!name)throw new Error('Pilot name not found');
   if(!base)throw new Error('Pilot base not found');
 
-  // Extract bid period number and date bounds from file
-  let bpNum='', bpStartDate=null, bpEndDate=null, fileYear=new Date().getFullYear();
+  let bpNum='',bpStartDate=null,bpEndDate=null,fileYear=new Date().getFullYear();
   for(const l of lines){
     const bpn=l.match(/Bid Period\s+(\d+)/);if(bpn)bpNum=bpn[1];
-    // "Available Date/Time this (next) BP : 23Feb26 2243 (23Mar26 1415)"
     const avail=l.match(/Available Date\/Time this.*?:\s*(\d{2})([A-Za-z]{3})(\d{2})\s+\d+\s+\((\d{2})([A-Za-z]{3})(\d{2})/);
     if(avail){
       const yr1=2000+parseInt(avail[3]),mon1=MONTHS.findIndex(m=>m.toLowerCase()===avail[2].toLowerCase());
       const yr2=2000+parseInt(avail[6]),mon2=MONTHS.findIndex(m=>m.toLowerCase()===avail[5].toLowerCase());
       bpStartDate=new Date(yr1,mon1,parseInt(avail[1]));
-      bpEndDate=new Date(yr2,mon2,parseInt(avail[4])-1); // end is start of NEXT bp, so -1 day
+      bpEndDate=new Date(yr2,mon2,parseInt(avail[4])-1);
       fileYear=yr1;
     }
   }
-  // Update global bid period if not yet set (use first loaded roster)
-  if(bpStartDate&&!BP_START){
-    BP_START=bpStartDate; BP_END=bpEndDate; BP_NUM=bpNum;
-    updateBidTag();
-  }
+  if(bpStartDate&&!BP_START){BP_START=bpStartDate;BP_END=bpEndDate;BP_NUM=bpNum;updateBidTag();}
 
-  // Build a helper: given day-of-month, figure out actual date using BP_START context
-  function resolveDate(dayNum){
-    if(!BP_START)return new Date(fileYear,1,dayNum); // fallback
-    // Walk through the bid period and find the date matching this dayNum
-    for(let d=new Date(BP_START);d<=new Date(BP_END.getTime()+86400000*2);d.setDate(d.getDate()+1)){
-      if(d.getDate()===dayNum){
-        // Return a copy, but we need to be careful about ambiguity (day 1-28 could appear twice in a long period)
-        // Use the roster table order to disambiguate - handled below
-        return new Date(d);
-      }
-    }
-    return new Date(fileYear,BP_START.getMonth(),dayNum);
-  }
-
-  // Parse duty table - walk sequentially to resolve month correctly
   const duties=[];
-  let inTable=false;
-  let lastDayNum=-1, currentMonth=BP_START?BP_START.getMonth():1, currentYear=BP_START?BP_START.getFullYear():fileYear;
+  let inTable=false,lastDayNum=-1;
+  let currentMonth=BP_START?BP_START.getMonth():1,currentYear=BP_START?BP_START.getFullYear():fileYear;
   for(const l of lines){
     if(l.match(/^-{40,}/)){inTable=!inTable;continue;}
     if(!inTable)continue;
     const m=l.match(/^\s*(\d{2})\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(.*)/);
     if(!m)continue;
     const dn=parseInt(m[1]),rest=m[3].trim();
-    // Detect month rollover: if dayNum drops significantly, we've crossed into next month
-    if(lastDayNum>20&&dn<10){
-      currentMonth++;
-      if(currentMonth>11){currentMonth=0;currentYear++;}
-    }
+    if(lastDayNum>20&&dn<10){currentMonth++;if(currentMonth>11){currentMonth=0;currentYear++;}}
     lastDayNum=dn;
     const date=new Date(currentYear,currentMonth,dn);
     let dutyType='UNKNOWN';
@@ -276,7 +324,6 @@ function parseRoster(text,colour){
     duties.push({date,dutyType});
   }
 
-  // Parse pattern details
   const patterns=[];
   let legs=[],inPats=false;
   for(const l of lines){
@@ -285,7 +332,6 @@ function parseRoster(text,colour){
     const lm=l.match(/^\s*(\d{2})(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{3,4})\s+([A-Z]{3})\s+(\d{4})\s+([A-Z]{3})\s+(\d{4})/);
     if(lm){
       const mon=MONTHS.indexOf(lm[2]);
-      // Determine year: if month is before BP_START month (wrapped), use next year
       let yr=BP_START?BP_START.getFullYear():fileYear;
       if(BP_START&&mon<BP_START.getMonth()&&BP_START.getMonth()>9)yr++;
       legs.push({date:new Date(yr,mon,parseInt(lm[1])),flt:lm[3],dep:lm[4],depM:t2mins(lm[5]),arr:lm[6],arrM:t2mins(lm[7])});
@@ -306,50 +352,51 @@ function buildTimeline(pilot){
   const tl=[];
   const covered=new Set();
 
-  function add(dateS,mS,dateE,mE,port,type,desc){
+  function add(dateS,mS,dateE,mE,port,type,desc,patternRef){
     const s=datePlusMins(dateS,mS),e=datePlusMins(dateE,mE);
     if(e<=s)return;
-    tl.push({start:s,end:e,port,type,desc});
+    tl.push({start:s,end:e,port,type,desc,patternRef:patternRef||null});
   }
 
   for(const pat of pilot.patterns){
     const first=pat.legs[0],last=pat.legs[pat.legs.length-1];
-    // Pre-flight ground at departure port
-    add(pat.startDate,pat.rptM,first.date,first.depM,first.dep,'GROUND',`Pre-flight ${first.dep}`);
+    const route=patternRoute(pat);
+    // Pre-flight ground
+    add(pat.startDate,pat.rptM,first.date,first.depM,first.dep,'GROUND',`Pattern: ${route}`,pat);
     // Each leg + ground turns
     for(let i=0;i<pat.legs.length;i++){
       const leg=pat.legs[i];
-      add(leg.date,leg.depM,leg.date,leg.arrM,`_FLY_${leg.dep}_${leg.arr}`,'INFLIGHT',`QF${leg.flt} ${leg.dep}→${leg.arr}`);
+      add(leg.date,leg.depM,leg.date,leg.arrM,`_FLY_${leg.dep}_${leg.arr}`,'INFLIGHT',`QF${leg.flt} ${leg.dep}→${leg.arr}`,pat);
       if(i<pat.legs.length-1){
         const nx=pat.legs[i+1];
-        add(leg.date,leg.arrM,nx.date,nx.depM,leg.arr,'GROUND',`Turn ${leg.arr}`);
+        add(leg.date,leg.arrM,nx.date,nx.depM,leg.arr,'GROUND',`Pattern: ${route}`,pat);
       }
     }
-    // After last leg
+    // Post last leg
     if(pat.ovPort){
       const rlsDate=new Date(last.date);
       if(pat.rlsM<last.arrM)rlsDate.setDate(rlsDate.getDate()+1);
-      add(last.date,last.arrM,rlsDate,pat.rlsM,last.arr,'GROUND',`Overnight ${last.arr}`);
+      add(last.date,last.arrM,rlsDate,pat.rlsM,last.arr,'GROUND',`Pattern: ${route}`,pat);
       covered.add(dateKey(rlsDate));
     } else {
-      add(last.date,last.arrM,last.date,pat.rlsM,last.arr,'GROUND',`Post-flight ${last.arr}`);
+      add(last.date,last.arrM,last.date,pat.rlsM,last.arr,'GROUND',`Pattern: ${route}`,pat);
     }
-    // After release at base: rest of day
+    // After release at base
     const rlsPort=pat.ovPort?pat.ovPort:last.arr;
     const rlsDate2=new Date(last.date);
     if(pat.ovPort&&pat.rlsM<last.arrM)rlsDate2.setDate(rlsDate2.getDate()+1);
     if(rlsPort===pilot.base){
-      add(rlsDate2,pat.rlsM,rlsDate2,1440,pilot.base,'BASE_REST',`At base ${pilot.base}`);
+      add(rlsDate2,pat.rlsM,rlsDate2,1440,pilot.base,'BASE_REST',`At base ${pilot.base}`,pat);
     }
     for(const leg of pat.legs)covered.add(dateKey(leg.date));
     covered.add(dateKey(pat.startDate));
   }
 
-  // Non-pattern days
   for(const d of pilot.duties){
     if(covered.has(dateKey(d.date)))continue;
     if(['DO','LEAVE','RESERVE'].includes(d.dutyType)){
-      add(d.date,0,d.date,1440,pilot.base,d.dutyType,d.dutyType==='DO'?'Day Off':d.dutyType==='LEAVE'?'Leave':'Reserve');
+      add(d.date,0,d.date,1440,pilot.base,d.dutyType,
+        d.dutyType==='DO'?'Day Off':d.dutyType==='LEAVE'?'Leave':'Reserve',null);
     }
   }
   return tl.sort((a,b)=>a.start-b.start);
@@ -364,15 +411,21 @@ function findOverlaps(tlA,tlB){
       if(a.port!==b.port)continue;
       const oS=new Date(Math.max(a.start,b.start)),oE=new Date(Math.min(a.end,b.end));
       if(oE<=oS)continue;
-      raw.push({start:oS,end:oE,port:a.port,durationMins:(oE-oS)/60000,typeA:a.type,descA:a.desc,typeB:b.type,descB:b.desc});
+      raw.push({start:oS,end:oE,port:a.port,durationMins:(oE-oS)/60000,
+        typeA:a.type,descA:a.desc,patA:a.patternRef,
+        typeB:b.type,descB:b.desc,patB:b.patternRef});
     }
   }
   raw.sort((a,b)=>a.start-b.start);
   const merged=[];
   for(const ov of raw){
     const last=merged[merged.length-1];
-    if(last&&last.port===ov.port&&ov.start<=last.end){last.end=new Date(Math.max(last.end,ov.end));last.durationMins=(last.end-last.start)/60000;}
-    else merged.push({...ov});
+    if(last&&last.port===ov.port&&ov.start<=last.end){
+      last.end=new Date(Math.max(last.end,ov.end));
+      last.durationMins=(last.end-last.start)/60000;
+    } else {
+      merged.push({...ov});
+    }
   }
   return merged;
 }
@@ -399,17 +452,27 @@ function renderUploadGrid(){
     el.className='upload-slot';
     el.innerHTML=`<input type="file" accept=".txt" onchange="loadFile(event)">
       <div class="add-slot"><div class="add-slot-icon">+</div><div>Add Pilot Roster</div>
-      <div style="font-size:10px;margin-top:4px;color:var(--text3)">ARMS .txt file</div></div>`;
+      <div style="font-size:11px;margin-top:4px;color:var(--text3)">WEBCIS .txt file</div></div>`;
     grid.appendChild(el);
   }
   document.getElementById('analyseBtn').disabled=pilots.length<2;
 }
 
 function removePilot(i){pilots.splice(i,1);renderUploadGrid();document.getElementById('results').classList.remove('show');}
+function printReport(){
+  // Make all pair views visible for print, then restore
+  const allSections=[];
+  // Show a print header with pilot names
+  const names=pilots.map(p=>p.name).join(' & ');
+  document.title=`Roster Overlap – ${names}`;
+  window.print();
+}
+
 function clearAll(){
   pilots=[];BP_START=null;BP_END=null;BP_NUM='';
   renderUploadGrid();
   document.getElementById('results').classList.remove('show');
+  document.getElementById('printBtn').style.display='none';
   document.getElementById('error-box').innerHTML='';
   document.getElementById('bid-tag').textContent='Upload rosters to begin';
 }
@@ -440,6 +503,7 @@ function analyse(){
       }
     renderStats();renderPairTabs();activePair=0;renderPairView(0);
     document.getElementById('results').classList.add('show');
+    document.getElementById('printBtn').style.display='inline-flex';
     setTimeout(()=>document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'}),100);
   }catch(err){document.getElementById('error-box').innerHTML=`<div class="error-box">⚠ ${err.message}</div>`;console.error(err);}
 }
@@ -468,30 +532,58 @@ function renderPairTabs(){
 
 function renderPairView(idx){renderCalendar(idx);renderSummary(idx);}
 
-function dayStatus(tl,date){
+// Return the best display info for a pilot on a given day
+function dayDisplay(tl,date,pilot){
   const ds=new Date(date);ds.setHours(0,0,0,0);
   const de=new Date(date);de.setHours(23,59,59,999);
   const ivs=tl.filter(i=>i.start<=de&&i.end>=ds);
   if(!ivs.length)return null;
-  const fly=ivs.find(i=>i.type==='INFLIGHT');if(fly)return fly;
-  const gnd=ivs.find(i=>i.type==='GROUND');if(gnd)return gnd;
-  return ivs[0];
+  // Prefer GROUND (pattern days) > DO/LEAVE/RESERVE > BASE_REST > INFLIGHT
+  const gnd=ivs.find(i=>i.type==='GROUND'||i.type==='INFLIGHT');
+  if(gnd&&gnd.patternRef){
+    return{type:'PATTERN',route:patternRoute(gnd.patternRef),pat:gnd.patternRef};
+  }
+  const off=ivs.find(i=>['DO','LEAVE','RESERVE'].includes(i.type));
+  if(off)return{type:off.type};
+  const br=ivs.find(i=>i.type==='BASE_REST');
+  if(br&&br.patternRef)return{type:'PATTERN',route:patternRoute(br.patternRef),pat:br.patternRef};
+  return{type:'?'};
 }
 
-function dutyTagHTML(st,colour){
-  if(!st)return`<div class="duty-tag type-unknown">· —</div>`;
-  let cls='',label='';
-  switch(st.type){
-    case 'INFLIGHT': cls='type-fly';   label=`✈ ${st.desc||st.port}`;break;
-    case 'GROUND':   cls='type-ground';label=`⬡ ${st.desc||st.port}`;break;
-    case 'DO':       cls='type-off';   label=`○ Day Off`;break;
-    case 'LEAVE':    cls='type-leave'; label=`◈ Leave`;break;
-    case 'RESERVE':  cls='type-rsv';   label=`◉ Reserve`;break;
-    case 'BASE_REST':cls='type-off';   label=`○ At Base`;break;
-    default:         cls='type-unknown';label=`· ${st.port||'?'}`;
+function dutyTagForDay(display,colour){
+  if(!display)return`<div class="duty-tag type-unknown">—</div>`;
+  switch(display.type){
+    case 'PATTERN':
+      return`<div class="duty-tag type-fly" style="border-left:2px solid ${colour}">✈ Flying</div>
+             <div class="pattern-route">${display.route}</div>`;
+    case 'DO':
+      return`<div class="duty-tag type-off">○ Day Off</div>`;
+    case 'LEAVE':
+      return`<div class="duty-tag type-leave">◈ Leave</div>`;
+    case 'RESERVE':
+      return`<div class="duty-tag type-rsv">◉ Reserve</div>`;
+    default:
+      return`<div class="duty-tag type-unknown">—</div>`;
   }
-  const bl=['INFLIGHT','GROUND'].includes(st.type)?`border-left:2px solid ${colour};`:'';
-  return`<div class="duty-tag ${cls}" style="${bl}">${label}</div>`;
+}
+
+// For the summary: describe what each pilot is doing contextually
+function summaryPilotDesc(ov, isA, pilotA, pilotB){
+  const pat=isA?ov.patA:ov.patB;
+  const type=isA?ov.typeA:ov.typeB;
+  if(pat){
+    const route=patternRoute(pat);
+    // Check if the overlap port is a turn port (not first dep or last arr)
+    const ports=pat.legs.map(l=>l.arr);
+    const firstDep=pat.legs[0].dep;
+    const lastArr=pat.legs[pat.legs.length-1].arr;
+    if(ov.port===firstDep||ov.port===lastArr){
+      return{name:(isA?pilotA:pilotB).name, desc:`${route}`, context:'pre/post-duty at base'};
+    }
+    return{name:(isA?pilotA:pilotB).name, desc:`${route}`, context:`${ov.port} turn`};
+  }
+  const labels={DO:'Day off at base',LEAVE:'On leave',RESERVE:'Reserve day',BASE_REST:'At base (post-duty)'};
+  return{name:(isA?pilotA:pilotB).name, desc:labels[type]||type, context:''};
 }
 
 function renderCalendar(idx){
@@ -509,7 +601,7 @@ function renderCalendar(idx){
   const scroll=document.createElement('div');scroll.className='cal-scroll';
   const table=document.createElement('div');table.className='cal-table';
   const hdr=document.createElement('div');hdr.className='cal-head';
-  hdr.style.gridTemplateColumns='88px 1fr 1fr 190px';
+  hdr.style.gridTemplateColumns='90px 1fr 1fr 200px';
   hdr.innerHTML=`<div class="ch">Date</div><div class="ch" style="color:${pA.colour}">${pA.name}</div><div class="ch" style="color:${pB.colour}">${pB.name}</div><div class="ch">Overlap</div>`;
   table.appendChild(hdr);
 
@@ -530,22 +622,20 @@ function renderCalendar(idx){
 
     const row=document.createElement('div');
     row.className='cal-row'+(dayOvs.length?' has-overlap':'');
-    row.style.gridTemplateColumns='88px 1fr 1fr 190px';
+    row.style.gridTemplateColumns='90px 1fr 1fr 200px';
 
     const dc=document.createElement('div');dc.className='cell cell-date';
     dc.innerHTML=`<div class="date-num">${date.getDate()}</div><div class="date-day">${DAYS[date.getDay()]}</div>`;
     row.appendChild(dc);
 
-    const sA=dayStatus(tlA,date);
+    const dispA=dayDisplay(tlA,date,pA);
     const cA=document.createElement('div');cA.className='cell cell-pilot';
-    cA.innerHTML=dutyTagHTML(sA,pA.colour);
-    if(sA&&['GROUND','INFLIGHT'].includes(sA.type))cA.innerHTML+=`<div class="duty-sub">${sA.desc||''}</div>`;
+    cA.innerHTML=dutyTagForDay(dispA,pA.colour);
     row.appendChild(cA);
 
-    const sB=dayStatus(tlB,date);
+    const dispB=dayDisplay(tlB,date,pB);
     const cB=document.createElement('div');cB.className='cell cell-pilot';
-    cB.innerHTML=dutyTagHTML(sB,pB.colour);
-    if(sB&&['GROUND','INFLIGHT'].includes(sB.type))cB.innerHTML+=`<div class="duty-sub">${sB.desc||''}</div>`;
+    cB.innerHTML=dutyTagForDay(dispB,pB.colour);
     row.appendChild(cB);
 
     const cO=document.createElement('div');cO.className='cell cell-overlap';
@@ -579,15 +669,29 @@ function renderSummary(idx){
     const sameDay=ov.start.toDateString()===ov.end.toDateString();
     const dStr=ov.start.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
     const eStr=sameDay?'':` → ${ov.end.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})}`;
+    const dA=summaryPilotDesc(ov,true,pA,pB);
+    const dB=summaryPilotDesc(ov,false,pA,pB);
     const card=document.createElement('div');card.className='summary-card';
     card.innerHTML=`
       <div class="sum-left">
         <div class="sum-date">${dStr}${eStr}</div>
         <div class="sum-port">${ov.port}<span>${PORT_NAMES[ov.port]||''}</span></div>
-        <div class="sum-window">${mins2t(msmid(ov.start))} – ${mins2t(msmid(ov.end))} local</div>
+        <div class="sum-window">${mins2t(msmid(ov.start))} – ${mins2t(msmid(ov.end))} local${dA.context?' · '+dA.context:''}</div>
         <div class="sum-pilots">
-          <div class="sum-pilot-line"><span class="sum-pilot-dot" style="background:${pA.colour}"></span>${pA.name}: ${ov.descA||ov.typeA}</div>
-          <div class="sum-pilot-line"><span class="sum-pilot-dot" style="background:${pB.colour}"></span>${pB.name}: ${ov.descB||ov.typeB}</div>
+          <div class="sum-pilot-line">
+            <span class="sum-pilot-dot" style="background:${pA.colour}"></span>
+            <span class="sum-pilot-text">
+              <span class="sum-pilot-name">${pA.name}</span>
+              <span class="sum-pilot-pattern">${dA.desc}</span>
+            </span>
+          </div>
+          <div class="sum-pilot-line">
+            <span class="sum-pilot-dot" style="background:${pB.colour}"></span>
+            <span class="sum-pilot-text">
+              <span class="sum-pilot-name">${pB.name}</span>
+              <span class="sum-pilot-pattern">${dB.desc}</span>
+            </span>
+          </div>
         </div>
       </div>
       <div class="sum-right">
