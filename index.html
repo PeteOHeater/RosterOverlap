@@ -244,7 +244,7 @@ h1 em{font-style:normal;color:var(--accent);}
   </header>
 
   <details id="roster-setup" open><summary>Rosters &amp; settings</summary><div id="upload-grid" class="upload-grid"></div>
-  <div class="options"><label><input id="assumeBase" type="checkbox" checked onchange="invalidate()"> Include assumed home time (days off, day before departure and after arrival)</label><label><input id="showHomeTurns" type="checkbox" onchange="invalidate()"> Show turnarounds when the other pilot is at home</label><label>Minimum overlap <select id="minMinutes" onchange="invalidate()"><option value="0">Any duration</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label></div>
+  <div class="options"><label><input id="assumeBase" type="checkbox" checked onchange="invalidate()"> Include assumed home time (days off, day before departure and after arrival)</label><label><input id="showHomeTurns" type="checkbox" onchange="invalidate()"> Show airport duty versus home / hotel overlaps</label><label>Minimum overlap <select id="minMinutes" onchange="invalidate()"><option value="0">Any duration</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label></div>
   </details>
   <div class="controls">
     <button class="btn btn-primary" id="analyseBtn" onclick="analyse()" disabled>Analyse Overlaps</button>
@@ -283,7 +283,7 @@ function instant(day,hhmm,port){
  throw Error('Ambiguous or invalid local time at '+port+' on '+day);
 }
 const namedDate=s=>{const m=s.match(/(\d{2})([A-Za-z]{3})(\d{2,4})/);if(!m)throw Error('Missing roster date');return `${m[3].length===2?'20'+m[3]:m[3]}-${String(MONTHS.findIndex(x=>x.toLowerCase()===m[2].toLowerCase())+1).padStart(2,'0')}-${m[1]}`;};
-function classify(code){return /^(D\/O|X|RX)$/.test(code)?'DO':/^(LA|AL)/.test(code)?'LEAVE':/^(AV|A|BL|MS|R4|R5)$/.test(code)?'RESERVE':'OTHER';}
+function classify(code){return /^(D\/O|X|RX|AV|A|BL|MS|AL)$/.test(code)?'DO':/^(LA|AL)/.test(code)?'LEAVE':/^(R4|R5)$/.test(code)?'RESERVE':'OTHER';}
 function parseRoster(text,colour){
  text=text.replace(/\r/g,'');const name=text.match(/Name\s*:\s*(.*?)\s{2,}(?:Staff|Category)/i)?.[1]?.trim().replace(/\s+/g,' ');
  const base=text.match(/Base\s*:\s*([A-Z]{3})/)?.[1],staffNo=text.match(/Staff No\s*:\s*(\d+)/)?.[1];
@@ -314,7 +314,7 @@ function parseShort(text,p){
  const r=line.match(/Rpt\s+(\d{4})\s+Rls\s+(\d{4})/);if(r&&legs.length){const first=legs[0],last=legs.at(-1);let start=instant(localDate(first.start,first.dep),r[1],first.dep);if(start>first.start)start=instant(dayAdd(localDate(first.start,first.dep),-1),r[1],first.dep);let end=instant(localDate(last.end,last.arr),r[2],last.arr);if(end<last.end)end=instant(dayAdd(localDate(last.end,last.arr),1),r[2],last.arr);p.patterns.push({start,end,legs});legs=[];}}
  if(legs.length)throw Error('Incomplete WEBCIS duty: release time missing.');
  const covered=new Set(p.patterns.flatMap(x=>x.legs.map(l=>localDate(l.start,l.dep))));
- for(const d of p.duties)if(d.type==='OTHER'&&!covered.has(d.date))p.warnings.push(`${fmtDate(d.date)}: ${d.code} has no usable location detail; excluded from overlaps.`);
+ for(const d of p.duties)if(d.type==='OTHER'&&!covered.has(d.date)){d.unavailable=true;p.warnings.push(`${fmtDate(d.date)}: ${d.code} has no usable location detail; assumed away / unavailable for catch-ups.`);}
 }
 function parseLong(text,p){
  const report=text.match(/(\d{2})\s+([A-Za-z]{3})\s+(20\d{2})/);if(!report)throw Error('ARMS report year missing.');const year=+report[3];
@@ -327,7 +327,7 @@ function parseLong(text,p){
  if(m&&code)templates[code].push({service:m[1],dep:m[2],arr:m[3],report:m[4],dw:m[5],dt:m[6],du:m[7],aw:m[8],at:m[9],au:m[10],kind:line.includes('PAX')?'P':'FLIGHT'});}
  for(let i=0;i<p.duties.length;i++){const d=p.duties[i];if(d.type!=='OTHER')continue;
  let j=i;while(j+1<p.duties.length&&p.duties[j+1].code===d.code&&p.duties[j+1].date===dayAdd(p.duties[j].date,1))j++;
- const template=templates[d.code];if(!template?.length){p.warnings.push(`${fmtDate(d.date)}: ${d.code} has no pattern detail; excluded from overlaps.`);i=j;continue;}
+ const template=templates[d.code];if(!template?.length){for(let k=i;k<=j;k++)p.duties[k].unavailable=true;p.warnings.push(`${fmtDate(d.date)}: ${d.code} has no pattern detail; assumed away / unavailable for catch-ups.`);i=j;continue;}
  const legs=[];let previous=-Infinity;
  for(const t of template){let start,depDay;
  for(let offset=0;offset<=10;offset++){const day=dayAdd(d.date,offset);if(weekday(day)!==t.dw)continue;const candidate=instant(day,t.dt,t.dep);if(candidate>=previous){start=candidate;depDay=day;break;}}
@@ -363,12 +363,17 @@ function buildTimeline(p,assumeBase=true){
  if(!departures.has(date)&&(rows.every(d=>d.type==='DO')||(before&&rows.every(d=>['DO','RESERVE','LEAVE'].includes(d.type)))))
  add(instant(date,'0000',home),instant(dayAdd(date,1),'0000',home),home,(before?'Day before departure':'Full day off')+' · assumed home '+home,true);
  }
+ // Same-day duties starting at home allow home presence until reporting.
+ for(const pat of p.patterns){const date=localDate(pat.start,home);
+ if(pat.legs[0].dep===home&&pat.legs.at(-1).arr===home&&localDate(pat.end,home)===date)
+ add(instant(date,'0000',home),pat.start,home,'Before same-day duty · assumed home '+home,true);
+ }
  for(const pat of p.patterns){const date=localDate(pat.end,home);
  if(pat.legs.at(-1).arr===p.base&&!p.patterns.some(next=>next!==pat&&next.start>=pat.end&&localDate(next.start,home)===date))add(pat.end,instant(dayAdd(date,1),'0000',home),home,'Arrival day · assumed home immediately after release (commute not timed)',true);
  }
  }
  // A personal location can never replace rostered duty or an away-port layover.
- const blockers=[...p.patterns.map(x=>({start:x.start,end:x.end})),...out.filter(x=>!x.assumed&&x.port!==p.base)];
+ const blockers=[...p.duties.filter(d=>d.unavailable).map(d=>({start:instant(d.date,'0000',p.base),end:instant(dayAdd(d.date,1),'0000',p.base)})),...p.patterns.map(x=>({start:x.start,end:x.end})),...out.filter(x=>!x.assumed&&x.port!==p.base)];
  const subtract=(items,blocks)=>{for(const block of blocks)items=items.flatMap(x=>{if(block.end<=x.start||block.start>=x.end)return [x];return [...(block.start>x.start?[{...x,end:block.start}]:[]),...(block.end<x.end?[{...x,start:block.end}]:[])];});return items;};
  // R5 is reserve 05:00–17:00 in the selected home port, per roster-code rules.
  // Actual trips and away-port stays take priority if a reserve row is superseded.
@@ -418,7 +423,7 @@ function removePilot(i){pilots.splice(i,1);invalidate();renderUploadGrid();showE
 function clearAll(){document.getElementById('roster-setup').open=true;pilots=[];invalidate();renderUploadGrid();showError('');}
 function analyse(){try{if(pilots.length<2)return;const assume=document.getElementById('assumeBase').checked,min=+document.getElementById('minMinutes').value;const tls=pilots.map(p=>buildTimeline(p,assume));pairsData=[];
  for(let i=0;i<pilots.length;i++)for(let j=i+1;j<pilots.length;j++){const start=pilots[i].start>pilots[j].start?pilots[i].start:pilots[j].start,end=pilots[i].end<pilots[j].end?pilots[i].end:pilots[j].end;
- const ovs=findOverlaps(tls[i],tls[j]).filter(o=>(document.getElementById('showHomeTurns').checked||!isTurnaroundAtHome(o,pilots[i],pilots[j]))&&(o.end-o.start)/60000>=min);pairsData.push({i,j,start,end,ovs,total:ovs.reduce((s,o)=>s+(o.end-o.start)/60000,0)});}
+ const ovs=findOverlaps(tls[i],tls[j]).filter(o=>(document.getElementById('showHomeTurns').checked||!isAirportCityCrossover(o))&&(o.end-o.start)/60000>=min);pairsData.push({i,j,start,end,ovs,total:ovs.reduce((s,o)=>s+(o.end-o.start)/60000,0)});}
  activePair=0;renderResults();document.getElementById('roster-setup').open=false;document.getElementById('results').classList.add('show');document.getElementById('printBtn').style.display='inline-flex';showError('');
  }catch(err){invalidate();showError(err.message);}}
 function renderResults(){const all=pairsData.flatMap(p=>p.ovs),stats=[['Pilots',pilots.length],['Overlap windows',all.length],['Total across pairs',duration(pairsData.reduce((s,p)=>s+p.total,0))],['Ports in common',new Set(all.map(o=>o.port)).size]];document.getElementById('stats-row').innerHTML=stats.map(([label,n])=>`<div class="stat-tile"><div class="stat-tile-label">${label}</div><div class="stat-tile-value" style="color:var(--accent)">${n}</div></div>`).join('');document.getElementById('pair-tabs').innerHTML=pairsData.map((p,k)=>`<button class="pair-tab ${k===activePair?'active':''}" onclick="activePair=${k};renderResults()">${esc(pilots[p.i].name.split(' ')[0])} + ${esc(pilots[p.j].name.split(' ')[0])} · ${dailyOverlapGroups(p).length} overlaps</button>`).join('');renderPairView();}
@@ -435,10 +440,10 @@ function rowDisplay(p,date){
 }
 function homeKind(o,a,b){const n=Number(o.port===(a.home||a.base))+Number(o.port===(b.home||b.base));return ['away-port','one-home','both-home'][n];}
 function homeLabel(o,a,b){const kind=homeKind(o,a,b);return kind==='both-home'?'Both home cities':kind==='one-home'?'One home city':'Away for both';}
-function isTurnaroundAtHome(o,a,b){
- const turn=descs=>descs.some(d=>d.startsWith('Turn'));
- const atHome=(descs,p)=>o.port===(p.home||p.base)&&descs.every(d=>d.includes('assumed home')||d.startsWith('Manually entered location')||d.startsWith('Before entered commute')||d.startsWith('After entered commute')||d.startsWith('Reserve R5'));
- return (turn(o.descsA)&&atHome(o.descsB,b))||(turn(o.descsB)&&atHome(o.descsA,a));
+function isAirportCityCrossover(o){
+ const airport=descs=>descs.some(d=>/^(Turn|Reporting|Post-flight|Training)/.test(d));
+ const city=descs=>descs.length>0&&descs.every(d=>d.includes('assumed home')||/^(Away-port layover|Layover|Manually entered location|Before entered commute|After entered commute|Reserve R5)/.test(d));
+ return (airport(o.descsA)&&city(o.descsB))||(airport(o.descsB)&&city(o.descsA));
 }
 function overlapStatus(descs){return [...new Set(descs.map(d=>d.startsWith('Reserve R5')?'Reserve / on call':d.includes('assumed home')?'Home — assumed':d.startsWith('Turn')?'Turnaround / on duty':d.startsWith('Reporting')?'Pre-flight / on duty':d.startsWith('Post-flight')?'Post-flight / on duty':d.startsWith('Training')?'Ground duty':d.startsWith('Away-port')?'Off duty / layover':d.startsWith('Layover')?'Layover / duty status unspecified':'Location entered / outside rostered duty'))].join('; ');}
 function dailyOverlapGroups(pair){
@@ -463,7 +468,7 @@ function renderPairView(){
  const warnings=[...a.warnings.map(w=>a.name+': '+w),...b.warnings.map(w=>b.name+': '+w)];
  document.getElementById('sum-section').innerHTML=`<div class="match-heading"><h2>${days.length} overlap${days.length===1?'':'s'}</h2><p>${esc(a.name)} &amp; ${esc(b.name)}</p><span>Times are local to each port · * includes assumed presence</span></div>`;
  document.getElementById('cal-section').innerHTML=days.length?`<div class="match-list">${days.map(({date,endDate,windows})=>`<section class="match-day"><div class="match-date"><strong>${overlapDateLabel(date,endDate)}</strong><span>${date.slice(0,4)}${endDate.slice(0,4)!==date.slice(0,4)?'–'+endDate.slice(0,4):''}</span></div><div class="match-windows">${windows.map(o=>`<div class="match-window ${homeKind(o,a,b)}"><div class="match-line"><strong class="match-port">${o.port}</strong><strong class="match-time">${windowTime(o,date)}${o.assumed?' *':''}</strong><span class="match-duration">${duration((o.end-o.start)/60000)}</span><span class="match-kind">${homeLabel(o,a,b)}</span></div><details class="match-details"><summary>Details</summary>${o.segments.map(seg=>`<div class="match-detail"><strong>${windowTime(seg,date)}</strong><div>${esc(a.name)}: ${esc(overlapStatus(seg.descsA))}</div><div>${esc(b.name)}: ${esc(overlapStatus(seg.descsB))}</div><small>${seg.descsA.concat(seg.descsB).map(esc).join(' · ')}</small></div>`).join('')}</details></div>`).join('')}</div></section>`).join('')}</div>`:'<div class="no-overlap-msg"><h3>No overlaps</h3><p>Try a shorter minimum duration or check the home-city settings.</p></div>';
- document.getElementById('cal-section').innerHTML+=`<details class="background-details"><summary>Assumptions, home cities &amp; import notes${warnings.length?' ('+warnings.length+')':''}</summary><p>${esc(a.name)}: home ${a.home||a.base}, base ${a.base}. ${esc(b.name)}: home ${b.home||b.base}, base ${b.base}.</p><p>Green: both home cities. Purple: one home city. Blue: away for both. Colours show location, not availability. Overlaps include time on duty. Turnaround-versus-home matches are hidden by default; enable them in Rosters &amp; settings. Two pilots on airport duty and away-port layovers remain included.</p><p>* Assumed presence includes days off and arrival-day home time immediately after duty release. Commutes are not timed unless entered. Overnight-trip departure days have no assumed home time. BL and MS follow the same rules as AV (availability, not a day off). R5 indicates reserve in the selected home port from 05:00 to 17:00 local and is included as on-call presence. Rostered duties take priority. Continuous overlaps are combined across midnight; genuine gaps remain separate; expand Details to see changes in duty status.</p>${warnings.length?'<ul>'+warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':''}</details>`;
+ document.getElementById('cal-section').innerHTML+=`<details class="background-details"><summary>Assumptions, home cities &amp; import notes${warnings.length?' ('+warnings.length+')':''}</summary><p>${esc(a.name)}: home ${a.home||a.base}, base ${a.base}. ${esc(b.name)}: home ${b.home||b.base}, base ${b.base}.</p><p>Green: both home cities. Purple: one home city. Blue: away for both. Colours show location, not availability. Overlaps include time on duty. Airport duty versus home or hotel stays is hidden by default; enable these crossovers in Rosters &amp; settings. Both-at-airport and both-off-duty overlaps remain included. A layover indicates presence in the city, not confirmed presence at the airport.</p><p>* Assumed presence includes days off and arrival-day home time immediately after duty release. Commutes are not timed unless entered. Overnight-trip departure days have no assumed home time. RX, AL (annual leave), AV, A, BL and MS count as assumed full days at home unless rostered travel takes priority. Same-day duties starting and ending at home include assumed home time until report. R5 indicates reserve in the selected home port from 05:00 to 17:00 local and is included as on-call presence. Undecoded trips are treated as away and unavailable for catch-ups. Rostered duties take priority. Continuous overlaps are combined across midnight; genuine gaps remain separate; expand Details to see changes in duty status.</p>${warnings.length?'<ul>'+warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':''}</details>`;
 }
 function printReport(){window.print();}
 renderUploadGrid();
