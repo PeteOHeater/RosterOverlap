@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Crew Roster Overlap Finder</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
 :root {
   --bg: #080b10;
@@ -22,7 +22,7 @@
   --red: #f87171;
   --text: #e2e8f0;
   --text2: #94a3b8;
-  --text3: #475569;
+  --text3: #94a3b8;
   --mono: 'Space Mono', monospace;
   --sans: 'DM Sans', sans-serif;
 }
@@ -215,6 +215,8 @@ h1 em{font-style:normal;color:var(--accent);}
   @page { margin: 15mm 12mm; size: A4; }
 }
 
+.options{display:flex;flex-direction:column;gap:12px;margin-bottom:24px;color:var(--text2);font-size:14px}.options input{accent-color:var(--accent)}select{background:var(--surface2);color:var(--text);padding:7px;border:1px solid var(--border2);border-radius:5px}.note{color:var(--text2);font-size:14px;margin-bottom:24px}.note ul{padding-left:24px}.cal-head,.cal-row{grid-template-columns:90px 1fr 1fr 200px}.pattern-route,.duty-tag{white-space:normal;overflow:visible;overflow-wrap:anywhere}.error-box{white-space:pre-line}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}@media(max-width:600px){.page{padding:0 14px}.site-header{padding-top:28px}.summary-card{flex-direction:column}.sum-right{text-align:left}.btn{padding:12px}.stat-tile-value{font-size:25px}}@media print{.options{display:none}.cal-table{min-width:0}.cal-scroll{overflow:visible}.cal-head,.cal-row{grid-template-columns:55px 1fr 1fr 115px}.cal-row{break-inside:avoid}.note{color:#444}.sum-pilot-line{color:#333}}
+.home-controls{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}.home-controls label{display:flex;flex-direction:column;gap:5px;margin:8px 0;font-size:13px}.home-controls select,.home-controls input{width:100%;min-width:0;padding:8px;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:5px;color-scheme:dark}.home-controls summary{cursor:pointer;font-size:13px;color:var(--accent);margin-top:12px}.small-note,.location-note{font-size:12px;color:var(--text2);margin-top:8px}.location-note{color:var(--yellow)}.edit-box{margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:6px}.saved-edit{font-size:12px;margin:10px 0;overflow-wrap:anywhere}.saved-edit button{margin-left:8px;padding:4px;cursor:pointer}.home-controls .btn{font-size:10px;letter-spacing:0;padding:8px 12px}
 </style>
 </head>
 <body>
@@ -222,490 +224,207 @@ h1 em{font-style:normal;color:var(--accent);}
   <header class="site-header">
     <div>
       <h1>Roster<br><em>Overlap</em> Finder</h1>
-      <p class="header-sub">Use your WEBCIS "Send My Roster" function and upload your rosters here to find an overlap with other crew.</p>
+      <p class="header-sub">Compare WEBCIS and ARMS crew rosters, including overnight stays and international trips. Files stay on your device; nothing is uploaded.</p>
     </div>
     <div><div class="bid-tag" id="bid-tag">Upload rosters to begin</div></div>
   </header>
 
   <div id="upload-grid" class="upload-grid"></div>
+  <div class="options"><label><input id="assumeBase" type="checkbox" checked onchange="invalidate()"> Include assumed home time (days off, day before departure and after arrival)</label><label>Minimum overlap <select id="minMinutes" onchange="invalidate()"><option value="0">Any duration</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label></div>
   <div class="controls">
     <button class="btn btn-primary" id="analyseBtn" onclick="analyse()" disabled>Analyse Overlaps</button>
-    <button class="btn" id="printBtn" onclick="printReport()" style="display:none">⎙ Save as PDF</button>
+    <button class="btn" id="printBtn" onclick="printReport()" style="display:none">⎙ Print selected pair / PDF</button>
     <button class="btn" onclick="clearAll()">Clear All</button>
   </div>
   <div id="error-box"></div>
   <div id="results">
     <div id="stats-row" class="stats-row"></div>
     <div id="pair-tabs" class="pair-tabs"></div>
-    <div id="cal-section"></div>
     <div id="sum-section"></div>
+    <div id="cal-section"></div>
   </div>
 </div>
 
 <script>
 'use strict';
+// All intervals are UTC instants; YYYY-MM-DD strings are local roster/calendar dates.
 const COLOURS=['#38bdf8','#fb923c','#a78bfa','#34d399','#fbbf24','#f472b6'];
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const PORT_NAMES={ADL:'Adelaide',MEL:'Melbourne',SYD:'Sydney',BNE:'Brisbane',PER:'Perth',OOL:'Gold Coast',AKL:'Auckland',WLG:'Wellington',CBR:'Canberra',HBA:'Hobart',TSV:'Townsville',CNS:'Cairns',DRW:'Darwin',NTL:'Newcastle',MCY:'Sunshine Coast',MKY:'Mackay',ROK:'Rockhampton'};
-let BP_START=null,BP_END=null,BP_NUM='';
-let pilots=[];
-
-function updateBidTag(){
-  const el=document.getElementById('bid-tag');
-  if(!el||!BP_START||!BP_END)return;
-  const fmt=d=>d.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
-  el.textContent=`BID PERIOD ${BP_NUM} · ${fmt(BP_START).toUpperCase()} – ${fmt(BP_END).toUpperCase()}`;
+const ZONES={ADL:'Australia/Adelaide',MEL:'Australia/Melbourne',SYD:'Australia/Sydney',BNE:'Australia/Brisbane',OOL:'Australia/Brisbane',HTI:'Australia/Brisbane',MCY:'Australia/Brisbane',CNS:'Australia/Brisbane',TSV:'Australia/Brisbane',MKY:'Australia/Brisbane',ROK:'Australia/Brisbane',PER:'Australia/Perth',DRW:'Australia/Darwin',CBR:'Australia/Sydney',NTL:'Australia/Sydney',HBA:'Australia/Hobart',AKL:'Pacific/Auckland',WLG:'Pacific/Auckland',LAX:'America/Los_Angeles',DFW:'America/Chicago',LHR:'Europe/London',SIN:'Asia/Singapore',HKG:'Asia/Hong_Kong',NRT:'Asia/Tokyo',HND:'Asia/Tokyo',JNB:'Africa/Johannesburg',SCL:'America/Santiago',BKK:'Asia/Bangkok',DPS:'Asia/Makassar',NAN:'Pacific/Fiji',CHC:'Pacific/Auckland',ZQN:'Pacific/Auckland'};
+let pilots=[],pairsData=[],activePair=0;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const iso=d=>new Date(d).toISOString().slice(0,10);
+const dayAdd=(d,n)=>iso(Date.parse(d+'T12:00:00Z')+n*86400000);
+const weekday=d=>['SU','MO','TU','WE','TH','FR','SA'][new Date(d+'T12:00Z').getUTCDay()];
+const fmtDate=d=>new Date(d+'T12:00Z').toLocaleDateString('en-AU',{timeZone:'UTC',day:'numeric',month:'short',year:'numeric'});
+const duration=m=>`${Math.floor(m/60)}h ${Math.round(m%60)}m`;
+function parts(t,port){if(!ZONES[port])throw Error('Unsupported airport time zone: '+port);return Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:ZONES[port],year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(t).map(p=>[p.type,p.value]));}
+function localDate(t,port){const p=parts(t,port);return `${p.year}-${p.month}-${p.day}`;}
+function clock(t,port){const p=parts(t,port);return `${p.hour}:${p.minute}`;}
+function instant(day,hhmm,port){
+ if(!/^\d{4}$/.test(hhmm)||+hhmm.slice(0,2)>23||+hhmm.slice(2)>59)throw Error('Invalid roster time: '+hhmm);
+ const target=Date.parse(`${day}T${hhmm.slice(0,2)}:${hhmm.slice(2)}:00Z`);let t=target;
+ for(let i=0;i<4;i++){const p=parts(t,port);const wall=Date.parse(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:00Z`);const delta=target-wall;if(!delta)return t;t+=delta;}
+ throw Error('Ambiguous or invalid local time at '+port+' on '+day);
 }
-
-const mins2t=m=>{const h=Math.floor(((m%1440)+1440)%1440/60),n=((m%1440)+1440)%1440%60;return`${String(h).padStart(2,'0')}:${String(n).padStart(2,'0')}`;};
-const t2mins=s=>parseInt(s.slice(0,2))*60+parseInt(s.slice(2,4));
-const dateKey=d=>`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-function fmtDur(m){const h=Math.floor(Math.abs(m)/60),n=Math.round(Math.abs(m)%60);if(h===0)return`${n}m`;if(n===0)return`${h}h`;return`${h}h ${n}m`;}
-function datePlusMins(date,mins){const d=new Date(date);d.setHours(0,0,0,0);return new Date(d.getTime()+mins*60000);}
-function msmid(date){return date.getHours()*60+date.getMinutes();}
-
-// Build the route string for a pattern: e.g. "ADL→SYD→OOL→SYD→ADL"
-function patternRoute(pat){
-  const ports=[pat.legs[0].dep,...pat.legs.map(l=>l.arr)];
-  return ports.join('→');
-}
-
-// Build a human-readable pattern label for the summary
-function patternLabel(pat, pilot){
-  const route=patternRoute(pat);
-  const dateStr=pat.startDate.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
-  return`${dateStr}: ${route}`;
-}
-
+const namedDate=s=>{const m=s.match(/(\d{2})([A-Za-z]{3})(\d{2,4})/);if(!m)throw Error('Missing roster date');return `${m[3].length===2?'20'+m[3]:m[3]}-${String(MONTHS.findIndex(x=>x.toLowerCase()===m[2].toLowerCase())+1).padStart(2,'0')}-${m[1]}`;};
+function classify(code){return /^(D\/O|X|RX)$/.test(code)?'DO':/^(LA|AL)/.test(code)?'LEAVE':/^(AV|A|R4)$/.test(code)?'RESERVE':'OTHER';}
 function parseRoster(text,colour){
-  const lines=text.split('\n');
-  let name='',base='',staffNo='';
-  for(const l of lines){
-    const nm=l.match(/Name\s*:\s*([A-Z][A-Z\s]+)/);if(nm)name=nm[1].trim();
-    const bs=l.match(/Base\s*:\s*([A-Z]{3})/);if(bs)base=bs[1];
-    const sn=l.match(/Staff No\s*:\s*(\d+)/);if(sn)staffNo=sn[1];
-  }
-  if(!name)throw new Error('Pilot name not found');
-  if(!base)throw new Error('Pilot base not found');
-
-  let bpNum='',bpStartDate=null,bpEndDate=null,fileYear=new Date().getFullYear();
-  for(const l of lines){
-    const bpn=l.match(/Bid Period\s+(\d+)/);if(bpn)bpNum=bpn[1];
-    const avail=l.match(/Available Date\/Time this.*?:\s*(\d{2})([A-Za-z]{3})(\d{2})\s+\d+\s+\((\d{2})([A-Za-z]{3})(\d{2})/);
-    if(avail){
-      const yr1=2000+parseInt(avail[3]),mon1=MONTHS.findIndex(m=>m.toLowerCase()===avail[2].toLowerCase());
-      const yr2=2000+parseInt(avail[6]),mon2=MONTHS.findIndex(m=>m.toLowerCase()===avail[5].toLowerCase());
-      bpStartDate=new Date(yr1,mon1,parseInt(avail[1]));
-      bpEndDate=new Date(yr2,mon2,parseInt(avail[4])-1);
-      fileYear=yr1;
-    }
-  }
-  if(bpStartDate&&!BP_START){BP_START=bpStartDate;BP_END=bpEndDate;BP_NUM=bpNum;updateBidTag();}
-
-  const duties=[];
-  let inTable=false,lastDayNum=-1;
-  let currentMonth=BP_START?BP_START.getMonth():1,currentYear=BP_START?BP_START.getFullYear():fileYear;
-  for(const l of lines){
-    if(l.match(/^-{40,}/)){inTable=!inTable;continue;}
-    if(!inTable)continue;
-    const m=l.match(/^\s*(\d{2})\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(.*)/);
-    if(!m)continue;
-    const dn=parseInt(m[1]),rest=m[3].trim();
-    if(lastDayNum>20&&dn<10){currentMonth++;if(currentMonth>11){currentMonth=0;currentYear++;}}
-    lastDayNum=dn;
-    const date=new Date(currentYear,currentMonth,dn);
-    let dutyType='UNKNOWN';
-    if(rest.match(/^D\/O/))dutyType='DO';
-    else if(rest.match(/^AV/))dutyType='DO';
-    else if(rest.match(/^LA/))dutyType='LEAVE';
-    else if(rest.match(/^R4/))dutyType='RESERVE';
-    else if(rest.match(/\d{4}\s+\d{4}/))dutyType='FLYING';
-    duties.push({date,dutyType});
-  }
-
-  const patterns=[];
-  let legs=[],inPats=false;
-  for(const l of lines){
-    if(l.includes('Pattern Details')){inPats=true;continue;}
-    if(!inPats)continue;
-    const lm=l.match(/^\s*(\d{2})(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{3,4})\s+([A-Z]{3})\s+(\d{4})\s+([A-Z]{3})\s+(\d{4})/);
-    if(lm){
-      const mon=MONTHS.indexOf(lm[2]);
-      let yr=BP_START?BP_START.getFullYear():fileYear;
-      if(BP_START&&mon<BP_START.getMonth()&&BP_START.getMonth()>9)yr++;
-      legs.push({date:new Date(yr,mon,parseInt(lm[1])),flt:lm[3],dep:lm[4],depM:t2mins(lm[5]),arr:lm[6],arrM:t2mins(lm[7])});
-      continue;
-    }
-    const rm=l.match(/\s*Rpt\s+(\d{4})\s+Rls\s+(\d{4})\s*(.*)/);
-    if(rm&&legs.length){
-      const after=rm[3].trim().split(/\s+/);
-      const ovPort=(after[0]?.match(/^[A-Z]{3}$/)&&PORT_NAMES[after[0]])?after[0]:null;
-      patterns.push({startDate:legs[0].date,legs:[...legs],rptM:t2mins(rm[1]),rlsM:t2mins(rm[2]),ovPort});
-      legs=[];
-    }
-  }
-  return{name,base,staffNo,colour,duties,patterns};
+ text=text.replace(/\r/g,'');const name=text.match(/Name\s*:\s*(.*?)\s{2,}(?:Staff|Category)/i)?.[1]?.trim().replace(/\s+/g,' ');
+ const base=text.match(/Base\s*:\s*([A-Z]{3})/)?.[1],staffNo=text.match(/Staff No\s*:\s*(\d+)/)?.[1];
+ if(!name||!base||!staffNo)throw Error('Not a recognised crew roster: name, base or staff number missing.');
+ const p={name,base,home:base,overrides:[],commutes:[],staffNo,colour,duties:[],patterns:[],warnings:[],format:/OPERATIONS ROSTER/.test(text)?'ARMS':'WEBCIS'};
+ if(p.format==='WEBCIS')parseShort(text,p);else parseLong(text,p);
+ p.duties.sort((a,b)=>a.date.localeCompare(b.date));
+ if(!p.duties.length)throw Error('No dated roster rows found. Please export a full text roster.');
+ p.start=p.duties[0].date;p.end=p.duties.at(-1).date;
+ p.patterns.sort((a,b)=>a.start-b.start);
+ for(const pat of p.patterns){if(pat.end<=pat.start)throw Error('Invalid duty chronology.');for(const l of pat.legs)if(l.end<=l.start)throw Error('Invalid sector chronology.');}
+ return p;
+}
+function parseShort(text,p){
+ const range=text.match(/Available Date\/Time this.*?:\s*(\d{2}[A-Za-z]{3}\d{2})/);if(!range)throw Error('WEBCIS period dates missing.');
+ let cursor=namedDate(range[1]);let last=+cursor.slice(8);
+ for(const line of text.split('Pattern Details')[0].split('\n')){const m=line.match(/^\s*(\d{2})\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(.*)/);if(!m)continue;
+ const n=+m[1];if(n<last){const dt=new Date(cursor+'T12:00Z');dt.setUTCMonth(dt.getUTCMonth()+1,1);cursor=iso(dt);}last=n;
+ const date=cursor.slice(0,8)+m[1],code=m[3].trim().split(/\s+/)[0];p.duties.push({date,code,type:classify(code)});}
+ const startYear=+cursor.slice(0,4);let legs=[];
+ for(const line of text.split('\n')){
+ const m=line.match(/^\s*(\d{2})([A-Z][a-z]{2})\s+(?:([PC])\s+)?([A-Z0-9]+)\s+([A-Z]{3})\s+(\d{4})\s+([A-Z]{3})\s+(\d{4})/);
+ if(m){let day=`${startYear}-${String(MONTHS.indexOf(m[2])+1).padStart(2,'0')}-${m[1]}`;
+ // Pick the year closest to this file's own period, independent of upload order.
+ const first=p.duties[0].date;if(day<dayAdd(first,-180))day=(startYear+1)+day.slice(4);if(day>dayAdd(first,180))day=(startYear-1)+day.slice(4);
+ const start=instant(day,m[6],m[5]);let end=instant(day,m[8],m[7]);if(end<=start)end=instant(dayAdd(day,1),m[8],m[7]);
+ legs.push({dep:m[5],arr:m[7],start,end,service:m[4],kind:m[3]||'FLIGHT'});continue;}
+ const r=line.match(/Rpt\s+(\d{4})\s+Rls\s+(\d{4})/);if(r&&legs.length){const first=legs[0],last=legs.at(-1);let start=instant(localDate(first.start,first.dep),r[1],first.dep);if(start>first.start)start=instant(dayAdd(localDate(first.start,first.dep),-1),r[1],first.dep);let end=instant(localDate(last.end,last.arr),r[2],last.arr);if(end<last.end)end=instant(dayAdd(localDate(last.end,last.arr),1),r[2],last.arr);p.patterns.push({start,end,legs});legs=[];}}
+ if(legs.length)throw Error('Incomplete WEBCIS duty: release time missing.');
+ const covered=new Set(p.patterns.flatMap(x=>x.legs.map(l=>localDate(l.start,l.dep))));
+ for(const d of p.duties)if(d.type==='OTHER'&&!covered.has(d.date))p.warnings.push(`${fmtDate(d.date)}: ${d.code} has no usable location detail; excluded from overlaps.`);
+}
+function parseLong(text,p){
+ const report=text.match(/(\d{2})\s+([A-Za-z]{3})\s+(20\d{2})/);if(!report)throw Error('ARMS report year missing.');const year=+report[3];
+ const table=text.split('**** END OF REPORT')[0];
+ for(const line of table.split('\n'))for(const cell of line.split('|')){const m=cell.match(/^\s*(\d{2})\/(\d{2})\s+[A-Z]\s+(\S+)(.*)/);if(!m)continue;let y=year;const reportMonth=MONTHS.indexOf(report[2])+1;if(reportMonth>9&&+m[2]<3)y++;if(reportMonth<3&&+m[2]>9)y--;p.duties.push({date:`${y}-${m[2]}-${m[1]}`,code:m[3],type:classify(m[3]),tail:m[4]});}
+ p.duties.sort((a,b)=>a.date.localeCompare(b.date));
+ const templates={};let code;
+ for(const line of text.split('\n')){const h=line.match(/^Pattern:\s*(\S+)/);if(h){code=h[1];templates[code]=[];continue;}
+ const m=line.match(/^(QFA\d+)\s+.*?([A-Z]{3})\/([A-Z]{3})\s+(?:(\d{4})\s+)?(MO|TU|WE|TH|FR|SA|SU)\s+(\d{4})\s+(\d{4})\s+(MO|TU|WE|TH|FR|SA|SU)\s+(\d{4})\s+(\d{4})/);
+ if(m&&code)templates[code].push({service:m[1],dep:m[2],arr:m[3],report:m[4],dw:m[5],dt:m[6],du:m[7],aw:m[8],at:m[9],au:m[10],kind:line.includes('PAX')?'P':'FLIGHT'});}
+ for(let i=0;i<p.duties.length;i++){const d=p.duties[i];if(d.type!=='OTHER')continue;
+ let j=i;while(j+1<p.duties.length&&p.duties[j+1].code===d.code&&p.duties[j+1].date===dayAdd(p.duties[j].date,1))j++;
+ const template=templates[d.code];if(!template?.length){p.warnings.push(`${fmtDate(d.date)}: ${d.code} has no pattern detail; excluded from overlaps.`);i=j;continue;}
+ const legs=[];let previous=-Infinity;
+ for(const t of template){let start,depDay;
+ for(let offset=0;offset<=10;offset++){const day=dayAdd(d.date,offset);if(weekday(day)!==t.dw)continue;const candidate=instant(day,t.dt,t.dep);if(candidate>=previous){start=candidate;depDay=day;break;}}
+ if(start===undefined)throw Error('Cannot date ARMS pattern '+d.code);
+ let end;for(let offset=-1;offset<=4;offset++){const day=dayAdd(depDay,offset);if(weekday(day)!==t.aw)continue;const candidate=instant(day,t.at,t.arr);if(candidate>start&&candidate-start<=30*3600000){end=candidate;break;}}
+ if(end===undefined)throw Error('Cannot date arrival in '+d.code);
+ const utc=t=>new Date(t).toISOString().slice(11,16).replace(':','');if(utc(start)!==t.du||utc(end)!==t.au)throw Error('Local/UTC times disagree in '+d.code+'; cannot safely compare.');
+ legs.push({...t,start,end});previous=end;}
+ const first=legs[0],last=legs.at(-1),reportTime=template[0].report; if(!reportTime)throw Error('Report time missing for '+d.code);
+ let start=instant(localDate(first.start,first.dep),reportTime,first.dep);if(start>first.start)start=instant(dayAdd(localDate(first.start,first.dep),-1),reportTime,first.dep);
+ const final=p.duties[j],times=[...final.tail.matchAll(/\b(\d{4})\b/g)].map(x=>x[1]);const release=times.at(-1);
+ if(!release)throw Error('Release time missing for '+d.code);const end=instant(final.date,release,p.base);
+ if(end<last.end||end-last.end>12*3600000)throw Error('Release date does not match '+d.code);
+ p.patterns.push({start,end,legs,code:d.code});i=j;}
+}
+function buildTimeline(p,assumeBase=true){
+ const out=[];const add=(start,end,port,desc,assumed=false)=>{if(end>start)out.push({start,end,port,desc,assumed});};
+ for(const pat of p.patterns){const legs=pat.legs,route=legs[0].dep+' → '+legs.map(l=>l.arr).join(' → ');
+ add(pat.start,legs[0].start,legs[0].dep,'Reporting / pre-flight · '+route);
+ for(let i=0;i<legs.length;i++){const l=legs[i];if(l.dep===l.arr)add(l.start,l.end,l.dep,'Training / ground duty · '+l.service);
+ const next=legs[i+1];if(next&&next.dep===l.arr)add(l.end,next.start,l.arr,(next.start-l.end>6*3600000?'Layover':'Turn')+' · '+route);}
+ add(legs.at(-1).end,pat.end,legs.at(-1).arr,'Post-flight · '+route);
+ }
+ // Join consecutive short-haul duty blocks at a known away port, including the overnight.
+ for(let i=0;i<p.patterns.length-1;i++){const a=p.patterns[i],b=p.patterns[i+1],port=a.legs.at(-1).arr;
+ if(port!==p.base&&port===b.legs[0].dep&&b.start>a.end&&b.start-a.end<72*3600000)add(a.end,b.start,port,'Away-port layover');}
+ const home=p.home||p.base;
+ const departures=new Set(p.patterns.filter(x=>x.legs[0].dep===p.base).map(x=>localDate(x.start,home)));
+ const dates=[...new Set(p.duties.map(d=>d.date))];
+ if(assumeBase){
+ for(const date of dates){const rows=p.duties.filter(d=>d.date===date);
+ const before=departures.has(dayAdd(date,1));
+ if(!departures.has(date)&&(rows.every(d=>d.type==='DO')||(before&&rows.every(d=>['DO','RESERVE','LEAVE'].includes(d.type)))))
+ add(instant(date,'0000',home),instant(dayAdd(date,1),'0000',home),home,(before?'Day before departure':'Full day off')+' · assumed home '+home,true);
+ }
+ for(const pat of p.patterns){const date=localDate(pat.end,home);
+ if(pat.legs.at(-1).arr===p.base&&!departures.has(date))add(pat.end,instant(dayAdd(date,1),'0000',home),home,'Arrival day · assumed home immediately after release (commute not timed)',true);
+ }
+ }
+ // A personal location can never replace rostered duty or an away-port layover.
+ const blockers=[...p.patterns.map(x=>({start:x.start,end:x.end})),...out.filter(x=>!x.assumed&&x.port!==p.base)];
+ const subtract=(items,blocks)=>{for(const block of blocks)items=items.flatMap(x=>{if(block.end<=x.start||block.start>=x.end)return [x];return [...(block.start>x.start?[{...x,end:block.start}]:[]),...(block.end<x.end?[{...x,start:block.end}]:[])];});return items;};
+ let personal=out.filter(x=>x.assumed);const manual=[];
+ for(const o of p.overrides||[]){const zone=o.port==='UNKNOWN'?home:o.port;const start=instant(o.date,'0000',zone),end=instant(dayAdd(o.date,1),'0000',zone);
+ personal=subtract(personal,[{start,end}]);const remaining=subtract(manual,[{start,end}]);manual.splice(0,manual.length,...remaining);
+ if(o.port!=='UNKNOWN')manual.push({start,end,port:o.port,desc:'Manually entered location · '+o.port,assumed:false,manual:true});
+ }
+ // Commutes take precedence over date overrides. Transit is always unassigned.
+ for(const c of p.commutes||[]){const start=instant(c.depDate,c.depTime,c.from),end=instant(c.arrDate,c.arrTime,c.to);
+ const ds=instant(c.depDate,'0000',c.from),de=instant(dayAdd(c.arrDate,1),'0000',c.to);
+ personal=subtract(personal,[{start:ds,end:de}]);const remaining=subtract(manual,[{start:ds,end:de}]);manual.splice(0,manual.length,...remaining);
+ manual.push({start:ds,end:start,port:c.from,desc:'Before entered commute · '+c.from,assumed:false,manual:true},{start:end,end:de,port:c.to,desc:'After entered commute · '+c.to,assumed:false,manual:true});
+ }
+ const safe=[...out.filter(x=>!x.assumed),...subtract([...personal,...manual],blockers)].filter(x=>x.end>x.start);
+ return safe.sort((a,b)=>a.start-b.start);
 }
 
-function buildTimeline(pilot){
-  const tl=[];
-  const covered=new Set();
-
-  function add(dateS,mS,dateE,mE,port,type,desc,patternRef){
-    const s=datePlusMins(dateS,mS),e=datePlusMins(dateE,mE);
-    if(e<=s)return;
-    tl.push({start:s,end:e,port,type,desc,patternRef:patternRef||null});
-  }
-
-  for(const pat of pilot.patterns){
-    const first=pat.legs[0],last=pat.legs[pat.legs.length-1];
-    const route=patternRoute(pat);
-    // Pre-flight ground
-    add(pat.startDate,pat.rptM,first.date,first.depM,first.dep,'GROUND',`Pattern: ${route}`,pat);
-    // Each leg + ground turns
-    for(let i=0;i<pat.legs.length;i++){
-      const leg=pat.legs[i];
-      add(leg.date,leg.depM,leg.date,leg.arrM,`_FLY_${leg.dep}_${leg.arr}`,'INFLIGHT',`QF${leg.flt} ${leg.dep}→${leg.arr}`,pat);
-      if(i<pat.legs.length-1){
-        const nx=pat.legs[i+1];
-        add(leg.date,leg.arrM,nx.date,nx.depM,leg.arr,'GROUND',`Pattern: ${route}`,pat);
-      }
-    }
-    // Post last leg
-    if(pat.ovPort){
-      const rlsDate=new Date(last.date);
-      if(pat.rlsM<last.arrM)rlsDate.setDate(rlsDate.getDate()+1);
-      add(last.date,last.arrM,rlsDate,pat.rlsM,last.arr,'GROUND',`Pattern: ${route}`,pat);
-      covered.add(dateKey(rlsDate));
-    } else {
-      add(last.date,last.arrM,last.date,pat.rlsM,last.arr,'GROUND',`Pattern: ${route}`,pat);
-    }
-    // After release at base
-    const rlsPort=pat.ovPort?pat.ovPort:last.arr;
-    const rlsDate2=new Date(last.date);
-    if(pat.ovPort&&pat.rlsM<last.arrM)rlsDate2.setDate(rlsDate2.getDate()+1);
-    if(rlsPort===pilot.base){
-      add(rlsDate2,pat.rlsM,rlsDate2,1440,pilot.base,'BASE_REST',`At base ${pilot.base}`,pat);
-    }
-    for(const leg of pat.legs)covered.add(dateKey(leg.date));
-    covered.add(dateKey(pat.startDate));
-  }
-
-  for(const d of pilot.duties){
-    if(covered.has(dateKey(d.date)))continue;
-    if(['DO','LEAVE','RESERVE'].includes(d.dutyType)){
-      add(d.date,0,d.date,1440,pilot.base,d.dutyType,
-        d.dutyType==='DO'?'Day Off':d.dutyType==='LEAVE'?'Leave':'Reserve',null);
-    }
-  }
-  return tl.sort((a,b)=>a.start-b.start);
+function findOverlaps(a,b){const raw=[];for(const x of a)for(const y of b)if(x.port===y.port){const start=Math.max(x.start,y.start),end=Math.min(x.end,y.end);if(end>start)raw.push({start,end,port:x.port,assumed:x.assumed||y.assumed,manual:!!(x.manual||y.manual),descsA:[x.desc],descsB:[y.desc]});}
+ raw.sort((x,y)=>x.port.localeCompare(y.port)||x.start-y.start);const merged=[];
+ for(const o of raw){const last=merged.at(-1);if(last&&last.port===o.port&&last.assumed===o.assumed&&last.manual===o.manual&&o.start<=last.end){last.end=Math.max(last.end,o.end);last.descsA=[...new Set([...last.descsA,...o.descsA])];last.descsB=[...new Set([...last.descsB,...o.descsB])];}else merged.push({...o});}
+ return merged.sort((a,b)=>a.start-b.start);
 }
-
-function findOverlaps(tlA,tlB){
-  const raw=[];
-  for(const a of tlA){
-    if(a.type==='INFLIGHT')continue;
-    for(const b of tlB){
-      if(b.type==='INFLIGHT')continue;
-      if(a.port!==b.port)continue;
-      const oS=new Date(Math.max(a.start,b.start)),oE=new Date(Math.min(a.end,b.end));
-      if(oE<=oS)continue;
-      raw.push({start:oS,end:oE,port:a.port,durationMins:(oE-oS)/60000,
-        typeA:a.type,descA:a.desc,patA:a.patternRef,
-        typeB:b.type,descB:b.desc,patB:b.patternRef});
-    }
-  }
-  raw.sort((a,b)=>a.start-b.start);
-  const merged=[];
-  for(const ov of raw){
-    const last=merged[merged.length-1];
-    if(last&&last.port===ov.port&&ov.start<=last.end){
-      last.end=new Date(Math.max(last.end,ov.end));
-      last.durationMins=(last.end-last.start)/60000;
-    } else {
-      merged.push({...ov});
-    }
-  }
-  return merged;
+function invalidate(){pairsData=[];document.getElementById('results').classList.remove('show');document.getElementById('printBtn').style.display='none';}
+const CITY_NAMES={ADL:'Adelaide',MEL:'Melbourne',SYD:'Sydney',BNE:'Brisbane',PER:'Perth',DRW:'Darwin',HBA:'Hobart',CBR:'Canberra',OOL:'Gold Coast',AKL:'Auckland',LAX:'Los Angeles',DFW:'Dallas/Fort Worth'};
+function portOptions(selected,unknown=false){return (unknown?'<option value="UNKNOWN">Unknown / away</option>':'')+Object.keys(ZONES).sort().map(port=>`<option value="${port}" ${port===selected?'selected':''}>${port}${CITY_NAMES[port]?' — '+CITY_NAMES[port]:''}</option>`).join('');}
+function homeControls(p,i){return `<div class="home-controls"><label>Home city / domicile<select aria-label="Home city for ${esc(p.name)}" onchange="setHome(${i},this.value)">${portOptions(p.home)}</select></label><details><summary>Adjust dates / enter commute</summary><p class="small-note">Personal locations apply outside rostered duty. Date overrides use the selected city’s local date. Unknown uses home-city time. Commutes override date entries and leave transit unassigned.</p><div class="edit-box"><strong>Date override</strong><label>Date<input id="override-date-${i}" type="date" min="${p.start}" max="${p.end}" value="${p.start}"></label><label>Location<select id="override-port-${i}">${portOptions(p.home,true)}</select></label><button class="btn" onclick="addOverride(${i})">Set date</button></div><div class="edit-box"><strong>Commute (local times at each airport)</strong><label>From<select id="from-${i}">${portOptions(p.home)}</select></label><label>Departure date<input id="dep-date-${i}" type="date" value="${p.start}"></label><label>Departure time<input id="dep-time-${i}" type="time"></label><label>To<select id="to-${i}">${portOptions(p.base)}</select></label><label>Arrival date<input id="arr-date-${i}" type="date" value="${p.start}"></label><label>Arrival time<input id="arr-time-${i}" type="time"></label><button class="btn" onclick="addCommute(${i})">Add commute</button></div><div>${p.overrides.map((o,k)=>`<div class="saved-edit">${fmtDate(o.date)} · ${o.port}<button onclick="removeEdit(${i},'overrides',${k})">Remove</button></div>`).join('')}${p.commutes.map((c,k)=>`<div class="saved-edit">${fmtDate(c.depDate)} ${c.depTime.slice(0,2)}:${c.depTime.slice(2)} ${c.from} → ${fmtDate(c.arrDate)} ${c.arrTime.slice(0,2)}:${c.arrTime.slice(2)} ${c.to}<button onclick="removeEdit(${i},'commutes',${k})">Remove</button></div>`).join('')}</div></details><p class="small-note">Settings last until this page is closed or the pilot is removed.</p></div>`;}
+function refreshSettings(){invalidate();renderUploadGrid();showError('');}
+function setHome(i,port){if(!ZONES[port])return;pilots[i].home=port;refreshSettings();}
+const field=id=>document.getElementById(id).value;
+function validDate(d){return /^\d{4}-\d{2}-\d{2}$/.test(d)&&Number.isFinite(Date.parse(d+'T12:00Z'))&&iso(Date.parse(d+'T12:00Z'))===d;}
+function addOverride(i){try{const p=pilots[i],date=field('override-date-'+i),port=field('override-port-'+i);if(!validDate(date)||date<p.start||date>p.end)throw Error('Choose a date within this roster.');if(port!=='UNKNOWN'&&!ZONES[port])throw Error('Choose a location.');p.overrides=p.overrides.filter(o=>o.date!==date);p.overrides.push({date,port});refreshSettings();}catch(e){showError(e.message);}}
+function addCommute(i){try{const p=pilots[i],c={from:field('from-'+i),to:field('to-'+i),depDate:field('dep-date-'+i),arrDate:field('arr-date-'+i),depTime:field('dep-time-'+i).replace(':',''),arrTime:field('arr-time-'+i).replace(':','')};
+ if(!validDate(c.depDate)||!validDate(c.arrDate)||c.depDate<p.start||c.arrDate>p.end)throw Error('Choose commute dates within this roster.');if(c.from===c.to)throw Error('Choose different departure and arrival cities.');
+ const start=instant(c.depDate,c.depTime,c.from),end=instant(c.arrDate,c.arrTime,c.to);if(end<=start||end-start>48*3600000)throw Error('Arrival must follow departure and be within 48 hours.');
+ const known=buildTimeline({...p,overrides:[],commutes:[]},false);if([...p.patterns,...known].some(x=>x.start<end&&x.end>start))throw Error('This commute conflicts with rostered duty or a known layover. Check the times.');
+ if(p.commutes.some(x=>instant(x.depDate,'0000',x.from)<instant(dayAdd(c.arrDate,1),'0000',c.to)&&instant(dayAdd(x.arrDate,1),'0000',x.to)>instant(c.depDate,'0000',c.from)))throw Error('A commute already covers these dates. Remove it first to replace it.');
+ p.commutes.push(c);refreshSettings();}catch(e){showError(e.message);}}
+function removeEdit(i,key,k){if(!['overrides','commutes'].includes(key))return;pilots[i][key].splice(k,1);refreshSettings();}
+function renderUploadGrid(){document.getElementById('upload-grid').innerHTML=pilots.map((p,i)=>`<div class="upload-slot loaded" style="border-color:${p.colour}"><button class="remove-btn" onclick="removePilot(${i})">✕ Remove</button><div class="upload-slot-icon">✓</div><div class="upload-slot-title" style="color:${p.colour}">${p.format} loaded</div><div class="pilot-name-display">${esc(p.name)}</div><div class="pilot-meta">Base: ${p.base} · Staff: ${p.staffNo}<br>${p.patterns.length} duty blocks · ${new Set(p.duties.map(d=>d.date)).size} roster days<br>${fmtDate(p.start)} – ${fmtDate(p.end)}</div>${homeControls(p,i)}</div>`).join('')+(pilots.length<6?'<div class="upload-slot"><input aria-label="Add roster text files" type="file" accept=".txt,text/plain" multiple onchange="loadFile(event)"><div class="add-slot"><div class="add-slot-icon">+</div><div>Add pilot rosters</div><div>WEBCIS or ARMS .txt</div></div></div>':'');document.getElementById('analyseBtn').disabled=pilots.length<2;
+ document.getElementById('bid-tag').textContent=pilots.length?`${pilots.length} roster${pilots.length===1?'':'s'} loaded · processed on your device`:'Upload rosters to begin';}
+function showError(s){document.getElementById('error-box').innerHTML=s?`<div class="error-box" role="alert">${esc(s)}</div>`:'';}
+async function loadFile(e){const files=[...e.target.files];invalidate();let errors=[];for(const file of files){try{if(pilots.length>=6)throw Error('Maximum six pilots.');if(file.size>5*1024*1024)throw Error('File exceeds 5 MB.');const p=parseRoster(await file.text(),COLOURS.find(c=>!pilots.some(p=>p.colour===c)));if(pilots.some(x=>x.staffNo===p.staffNo))throw Error('This pilot is already loaded; remove the old roster first.');pilots.push(p);}catch(err){errors.push(file.name+': '+err.message);}}renderUploadGrid();showError(errors.join('\n'));}
+function removePilot(i){pilots.splice(i,1);invalidate();renderUploadGrid();showError('');}
+function clearAll(){pilots=[];invalidate();renderUploadGrid();showError('');}
+function analyse(){try{if(pilots.length<2)return;const assume=document.getElementById('assumeBase').checked,min=+document.getElementById('minMinutes').value;const tls=pilots.map(p=>buildTimeline(p,assume));pairsData=[];
+ for(let i=0;i<pilots.length;i++)for(let j=i+1;j<pilots.length;j++){const start=pilots[i].start>pilots[j].start?pilots[i].start:pilots[j].start,end=pilots[i].end<pilots[j].end?pilots[i].end:pilots[j].end;
+ const ovs=findOverlaps(tls[i],tls[j]).filter(o=>(o.end-o.start)/60000>=min);pairsData.push({i,j,start,end,ovs,total:ovs.reduce((s,o)=>s+(o.end-o.start)/60000,0)});}
+ activePair=0;renderResults();document.getElementById('results').classList.add('show');document.getElementById('printBtn').style.display='inline-flex';showError('');
+ }catch(err){invalidate();showError(err.message);}}
+function renderResults(){const all=pairsData.flatMap(p=>p.ovs),stats=[['Pilots',pilots.length],['Overlap windows',all.length],['Total across pairs',duration(pairsData.reduce((s,p)=>s+p.total,0))],['Ports in common',new Set(all.map(o=>o.port)).size]];document.getElementById('stats-row').innerHTML=stats.map(([label,n])=>`<div class="stat-tile"><div class="stat-tile-label">${label}</div><div class="stat-tile-value" style="color:var(--accent)">${n}</div></div>`).join('');document.getElementById('pair-tabs').innerHTML=pairsData.map((p,k)=>`<button class="pair-tab ${k===activePair?'active':''}" onclick="activePair=${k};renderResults()">${esc(pilots[p.i].name.split(' ')[0])} + ${esc(pilots[p.j].name.split(' ')[0])} · ${p.ovs.length} windows</button>`).join('');renderPairView();}
+function rosterDayDisplay(p,date){const ds=p.duties.filter(d=>d.date===date);if(!ds.length)return '<div class="duty-tag type-unknown">Outside supplied roster</div>';
+ const pats=p.patterns.filter(x=>localDate(x.start,p.base)<=date&&localDate(x.end,p.base)>=date);
+ if(pats.length)return pats.map(x=>`<div class="duty-tag type-fly">✈ Duty / trip</div><div class="pattern-route">${x.legs[0].dep} → ${x.legs.map(l=>l.arr).join(' → ')}</div>`).join('');
+ return ds.map(d=>`<div class="duty-tag type-${d.type==='DO'?'off':d.type==='LEAVE'?'leave':d.type==='RESERVE'?'rsv':'unknown'}">${esc(({DO:'Day off',LEAVE:'Leave — location unknown',RESERVE:'Reserve / available — excluded',OTHER:'Duty — location unknown'})[d.type])} (${esc(d.code)})</div>`).join('');}
+function rowDisplay(p,date){
+ const home=p.home||p.base;const tls=buildTimeline(p,document.getElementById('assumeBase').checked);
+ const entries=tls.filter(x=>(x.assumed||x.manual)&&localDate(x.start,home)<=date&&localDate(x.end-1,home)>=date);
+ const notes=[...new Set(entries.map(x=>(x.assumed?'Assumed home: ':'Entered location: ')+x.port))];
+ if(!notes.length&&p.patterns.some(x=>x.legs[0].dep===p.base&&localDate(x.start,home)===date))notes.push('Departure day · no assumed home time');
+ return rosterDayDisplay(p,date)+notes.map(n=>'<div class="location-note">'+esc(n)+'</div>').join('');
 }
-
-function renderUploadGrid(){
-  const grid=document.getElementById('upload-grid');
-  grid.innerHTML='';
-  pilots.forEach((p,i)=>{
-    const el=document.createElement('div');
-    el.className='upload-slot loaded';
-    el.style.borderColor=p.colour;
-    el.innerHTML=`<button class="remove-btn" onclick="removePilot(${i})">✕ Remove</button>
-      <div class="upload-slot-icon">✓</div>
-      <div class="upload-slot-title" style="color:${p.colour}">Pilot ${i+1} Loaded</div>
-      <div class="loaded-info">
-        <div class="pilot-name-display">${p.name}</div>
-        <div class="pilot-meta">Base: ${p.base} · Staff: ${p.staffNo}</div>
-        <div class="pilot-meta" style="margin-top:4px">${p.patterns.length} patterns · ${p.duties.length} duty days</div>
-      </div>`;
-    grid.appendChild(el);
-  });
-  if(pilots.length<6){
-    const el=document.createElement('div');
-    el.className='upload-slot';
-    el.innerHTML=`<input type="file" accept=".txt" onchange="loadFile(event)">
-      <div class="add-slot"><div class="add-slot-icon">+</div><div>Add Pilot Roster</div>
-      <div style="font-size:11px;margin-top:4px;color:var(--text3)">WEBCIS .txt file</div></div>`;
-    grid.appendChild(el);
-  }
-  document.getElementById('analyseBtn').disabled=pilots.length<2;
-}
-
-function removePilot(i){pilots.splice(i,1);renderUploadGrid();document.getElementById('results').classList.remove('show');}
-function printReport(){
-  // Make all pair views visible for print, then restore
-  const allSections=[];
-  // Show a print header with pilot names
-  const names=pilots.map(p=>p.name).join(' & ');
-  document.title=`Roster Overlap – ${names}`;
-  window.print();
-}
-
-function clearAll(){
-  pilots=[];BP_START=null;BP_END=null;BP_NUM='';
-  renderUploadGrid();
-  document.getElementById('results').classList.remove('show');
-  document.getElementById('printBtn').style.display='none';
-  document.getElementById('error-box').innerHTML='';
-  document.getElementById('bid-tag').textContent='Upload rosters to begin';
-}
-
-function loadFile(e){
-  const file=e.target.files[0];if(!file)return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    try{
-      const p=parseRoster(ev.target.result,COLOURS[pilots.length%COLOURS.length]);
-      pilots.push(p);renderUploadGrid();document.getElementById('error-box').innerHTML='';
-    }catch(err){document.getElementById('error-box').innerHTML=`<div class="error-box">⚠ ${err.message}</div>`;}
-  };
-  r.readAsText(file);
-}
-
-let pairsData=[],tlCache=[],activePair=0;
-
-function analyse(){
-  document.getElementById('error-box').innerHTML='';
-  try{
-    tlCache=pilots.map(p=>buildTimeline(p));
-    pairsData=[];
-    for(let i=0;i<pilots.length;i++)
-      for(let j=i+1;j<pilots.length;j++){
-        const ovs=findOverlaps(tlCache[i],tlCache[j]);
-        pairsData.push({i,j,ovs,totalMins:ovs.reduce((s,o)=>s+o.durationMins,0)});
-      }
-    renderStats();renderPairTabs();activePair=0;renderPairView(0);
-    document.getElementById('results').classList.add('show');
-    document.getElementById('printBtn').style.display='inline-flex';
-    setTimeout(()=>document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'}),100);
-  }catch(err){document.getElementById('error-box').innerHTML=`<div class="error-box">⚠ ${err.message}</div>`;console.error(err);}
-}
-
-function renderStats(){
-  const tM=pairsData.reduce((s,p)=>s+p.totalMins,0),tW=pairsData.reduce((s,p)=>s+p.ovs.length,0);
-  const ports=new Set(pairsData.flatMap(p=>p.ovs.map(o=>o.port)));
-  document.getElementById('stats-row').innerHTML=`
-    <div class="stat-tile"><div class="stat-tile-label">Pilots</div><div class="stat-tile-value" style="color:var(--accent)">${pilots.length}</div></div>
-    <div class="stat-tile"><div class="stat-tile-label">Overlap Windows</div><div class="stat-tile-value" style="color:var(--green)">${tW}</div><div class="stat-tile-sub">across all pairs</div></div>
-    <div class="stat-tile"><div class="stat-tile-label">Total Overlap Time</div><div class="stat-tile-value" style="color:var(--orange)">${fmtDur(tM)}</div></div>
-    <div class="stat-tile"><div class="stat-tile-label">Ports in Common</div><div class="stat-tile-value" style="color:var(--purple)">${ports.size}</div></div>`;
-}
-
-function renderPairTabs(){
-  const el=document.getElementById('pair-tabs');el.innerHTML='';
-  pairsData.forEach((pair,idx)=>{
-    const pA=pilots[pair.i],pB=pilots[pair.j];
-    const tab=document.createElement('div');
-    tab.className='pair-tab'+(idx===0?' active':'');
-    tab.innerHTML=`<span style="color:${pA.colour}">●</span> ${pA.name.split(' ')[0]} <span style="color:${pB.colour}">●</span> ${pB.name.split(' ')[0]} <span class="pair-count">${pair.ovs.length} windows</span>`;
-    tab.onclick=()=>{document.querySelectorAll('.pair-tab').forEach((t,i)=>t.classList.toggle('active',i===idx));activePair=idx;renderPairView(idx);};
-    el.appendChild(tab);
-  });
-}
-
-function renderPairView(idx){renderCalendar(idx);renderSummary(idx);}
-
-// Return the best display info for a pilot on a given day
-function dayDisplay(tl,date,pilot){
-  const ds=new Date(date);ds.setHours(0,0,0,0);
-  const de=new Date(date);de.setHours(23,59,59,999);
-  const ivs=tl.filter(i=>i.start<=de&&i.end>=ds);
-  if(!ivs.length)return null;
-  // Prefer GROUND (pattern days) > DO/LEAVE/RESERVE > BASE_REST > INFLIGHT
-  const gnd=ivs.find(i=>i.type==='GROUND'||i.type==='INFLIGHT');
-  if(gnd&&gnd.patternRef){
-    return{type:'PATTERN',route:patternRoute(gnd.patternRef),pat:gnd.patternRef};
-  }
-  const off=ivs.find(i=>['DO','LEAVE','RESERVE'].includes(i.type));
-  if(off)return{type:off.type};
-  const br=ivs.find(i=>i.type==='BASE_REST');
-  if(br&&br.patternRef)return{type:'PATTERN',route:patternRoute(br.patternRef),pat:br.patternRef};
-  return{type:'?'};
-}
-
-function dutyTagForDay(display,colour){
-  if(!display)return`<div class="duty-tag type-unknown">—</div>`;
-  switch(display.type){
-    case 'PATTERN':
-      return`<div class="duty-tag type-fly" style="border-left:2px solid ${colour}">✈ Flying</div>
-             <div class="pattern-route">${display.route}</div>`;
-    case 'DO':
-      return`<div class="duty-tag type-off">○ Day Off</div>`;
-    case 'LEAVE':
-      return`<div class="duty-tag type-leave">◈ Leave</div>`;
-    case 'RESERVE':
-      return`<div class="duty-tag type-rsv">◉ Reserve</div>`;
-    default:
-      return`<div class="duty-tag type-unknown">—</div>`;
-  }
-}
-
-// For the summary: describe what each pilot is doing contextually
-function summaryPilotDesc(ov, isA, pilotA, pilotB){
-  const pat=isA?ov.patA:ov.patB;
-  const type=isA?ov.typeA:ov.typeB;
-  if(pat){
-    const route=patternRoute(pat);
-    // Check if the overlap port is a turn port (not first dep or last arr)
-    const ports=pat.legs.map(l=>l.arr);
-    const firstDep=pat.legs[0].dep;
-    const lastArr=pat.legs[pat.legs.length-1].arr;
-    if(ov.port===firstDep||ov.port===lastArr){
-      return{name:(isA?pilotA:pilotB).name, desc:`${route}`, context:'pre/post-duty at base'};
-    }
-    return{name:(isA?pilotA:pilotB).name, desc:`${route}`, context:`${ov.port} turn`};
-  }
-  const labels={DO:'Day off at base',LEAVE:'On leave',RESERVE:'Reserve day',BASE_REST:'At base (post-duty)'};
-  return{name:(isA?pilotA:pilotB).name, desc:labels[type]||type, context:''};
-}
-
-function renderCalendar(idx){
-  const pair=pairsData[idx],pA=pilots[pair.i],pB=pilots[pair.j];
-  const tlA=tlCache[pair.i],tlB=tlCache[pair.j];
-  const sec=document.getElementById('cal-section');
-  sec.innerHTML=`
-    <div class="section-head"><div class="section-head-title">Calendar</div><div class="section-head-line"></div></div>
-    <div class="legend">
-      <div class="legend-item"><span class="legend-dot" style="background:${pA.colour}"></span>${pA.name} (${pA.base})</div>
-      <div class="legend-item"><span class="legend-dot" style="background:${pB.colour}"></span>${pB.name} (${pB.base})</div>
-      <div class="legend-item"><span class="legend-swatch" style="background:rgba(52,211,153,.3);border:1px solid rgba(52,211,153,.4)"></span>Overlap</div>
-    </div>`;
-  const wrap=document.createElement('div');wrap.className='cal-wrap';
-  const scroll=document.createElement('div');scroll.className='cal-scroll';
-  const table=document.createElement('div');table.className='cal-table';
-  const hdr=document.createElement('div');hdr.className='cal-head';
-  hdr.style.gridTemplateColumns='90px 1fr 1fr 200px';
-  hdr.innerHTML=`<div class="ch">Date</div><div class="ch" style="color:${pA.colour}">${pA.name}</div><div class="ch" style="color:${pB.colour}">${pB.name}</div><div class="ch">Overlap</div>`;
-  table.appendChild(hdr);
-
-  let lastMonth=-1;
-  const calStart=BP_START||new Date(2026,1,23);
-  const calEnd=BP_END||new Date(2026,2,22);
-  for(let d=new Date(calStart);d<=calEnd;d.setDate(d.getDate()+1)){
-    const date=new Date(d);
-    if(date.getMonth()!==lastMonth){
-      lastMonth=date.getMonth();
-      const md=document.createElement('div');md.className='month-row';
-      md.textContent=`${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
-      table.appendChild(md);
-    }
-    const ds=new Date(date);ds.setHours(0,0,0,0);
-    const de=new Date(date);de.setHours(23,59,59,999);
-    const dayOvs=pair.ovs.filter(o=>o.start<=de&&o.end>=ds);
-
-    const row=document.createElement('div');
-    row.className='cal-row'+(dayOvs.length?' has-overlap':'');
-    row.style.gridTemplateColumns='90px 1fr 1fr 200px';
-
-    const dc=document.createElement('div');dc.className='cell cell-date';
-    dc.innerHTML=`<div class="date-num">${date.getDate()}</div><div class="date-day">${DAYS[date.getDay()]}</div>`;
-    row.appendChild(dc);
-
-    const dispA=dayDisplay(tlA,date,pA);
-    const cA=document.createElement('div');cA.className='cell cell-pilot';
-    cA.innerHTML=dutyTagForDay(dispA,pA.colour);
-    row.appendChild(cA);
-
-    const dispB=dayDisplay(tlB,date,pB);
-    const cB=document.createElement('div');cB.className='cell cell-pilot';
-    cB.innerHTML=dutyTagForDay(dispB,pB.colour);
-    row.appendChild(cB);
-
-    const cO=document.createElement('div');cO.className='cell cell-overlap';
-    if(dayOvs.length){
-      for(const ov of dayOvs){
-        cO.innerHTML+=`<div class="ov-block">
-          <div class="ov-port">✦ ${ov.port}</div>
-          <div class="ov-time">${mins2t(msmid(ov.start))} – ${mins2t(msmid(ov.end))}</div>
-          <div class="ov-dur">${fmtDur(ov.durationMins)} · ${PORT_NAMES[ov.port]||ov.port}</div>
-        </div>`;
-      }
-    } else {
-      cO.innerHTML='<div class="overlap-none">·</div>';
-    }
-    row.appendChild(cO);
-    table.appendChild(row);
-  }
-  scroll.appendChild(table);wrap.appendChild(scroll);sec.appendChild(wrap);
-}
-
-function renderSummary(idx){
-  const pair=pairsData[idx],pA=pilots[pair.i],pB=pilots[pair.j];
-  const sec=document.getElementById('sum-section');
-  sec.innerHTML=`<div class="section-head"><div class="section-head-title">Overlap Summary</div><div class="section-head-line"></div></div><div class="summary-list" id="sum-list"></div>`;
-  const list=document.getElementById('sum-list');
-  if(!pair.ovs.length){
-    list.innerHTML=`<div class="no-overlap-msg"><div class="icon">✈</div><h3>No overlaps found</h3><p>These two pilots are never in the same port at the same time during bid period ${BP_NUM||''}.</p></div>`;
-    return;
-  }
-  for(const ov of pair.ovs){
-    const sameDay=ov.start.toDateString()===ov.end.toDateString();
-    const dStr=ov.start.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
-    const eStr=sameDay?'':` → ${ov.end.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})}`;
-    const dA=summaryPilotDesc(ov,true,pA,pB);
-    const dB=summaryPilotDesc(ov,false,pA,pB);
-    const card=document.createElement('div');card.className='summary-card';
-    card.innerHTML=`
-      <div class="sum-left">
-        <div class="sum-date">${dStr}${eStr}</div>
-        <div class="sum-port">${ov.port}<span>${PORT_NAMES[ov.port]||''}</span></div>
-        <div class="sum-window">${mins2t(msmid(ov.start))} – ${mins2t(msmid(ov.end))} local${dA.context?' · '+dA.context:''}</div>
-        <div class="sum-pilots">
-          <div class="sum-pilot-line">
-            <span class="sum-pilot-dot" style="background:${pA.colour}"></span>
-            <span class="sum-pilot-text">
-              <span class="sum-pilot-name">${pA.name}</span>
-              <span class="sum-pilot-pattern">${dA.desc}</span>
-            </span>
-          </div>
-          <div class="sum-pilot-line">
-            <span class="sum-pilot-dot" style="background:${pB.colour}"></span>
-            <span class="sum-pilot-text">
-              <span class="sum-pilot-name">${pB.name}</span>
-              <span class="sum-pilot-pattern">${dB.desc}</span>
-            </span>
-          </div>
-        </div>
-      </div>
-      <div class="sum-right">
-        <div class="sum-dur">${fmtDur(ov.durationMins)}</div>
-        <div class="sum-dur-label">overlap</div>
-      </div>`;
-    list.appendChild(card);
-  }
-  const tot=document.createElement('div');tot.className='summary-total';
-  tot.innerHTML=`Total: <strong>${fmtDur(pair.totalMins)}</strong> across <strong>${pair.ovs.length}</strong> window${pair.ovs.length!==1?'s':''} in bid period ${BP_NUM||''}`;
-  list.appendChild(tot);
-}
-
+function renderPairView(){const pair=pairsData[activePair],a=pilots[pair.i],b=pilots[pair.j];document.getElementById('sum-section').innerHTML=`<div class="section-head"><div class="section-head-title">${esc(a.name)} + ${esc(b.name)}</div></div><p class="note">Times below are local at the overlap airport. Ground presence includes duty and turns; it does not guarantee free time. Home time is assumed on full days off, the day before departure, and after release on arrival days. Departure days have no assumed home time. Arrival assumes an immediate return home, not a known commute. Rostered duty takes priority. Enter commute times for accuracy. Other leave, reserve and unknown duties stay unassigned.</p>`;
+ const sec=document.getElementById('sum-section');
+ if(!pair.ovs.length)sec.innerHTML+=`<div class="no-overlap-msg"><h3>${pair.start>pair.end?'Roster dates do not overlap':'No matching windows'}</h3><p>No overlaps found in the supplied location data with these settings.</p></div>`;
+ for(const o of pair.ovs){const startDay=localDate(o.start,o.port),endDay=localDate(o.end,o.port);sec.innerHTML+=`<div class="summary-card"><div class="sum-left"><div class="sum-date">${fmtDate(startDay)}${endDay!==startDay?' → '+fmtDate(endDay):''}</div><div class="sum-port">${o.port} <span>${o.assumed?'Includes assumed home presence':o.manual?'Includes manually entered location':'Roster-derived ground presence'}</span></div><div class="sum-window">${clock(o.start,o.port)} – ${clock(o.end,o.port)} local · ${ZONES[o.port]}</div><div class="sum-pilots">${[[a,o.descsA],[b,o.descsB]].map(([p,descs])=>`<div class="sum-pilot-line"><span class="sum-pilot-dot" style="background:${p.colour}"></span><div><strong>${esc(p.name)}</strong><div class="sum-pilot-pattern">${descs.map(esc).join('<br>')}</div></div>`).join('')}</div></div><div class="sum-right"><div class="sum-dur">${duration((o.end-o.start)/60000)}</div></div></div>`;}
+ const warnings=[...a.warnings.map(w=>a.name+': '+w),...b.warnings.map(w=>b.name+': '+w)];if(warnings.length)sec.innerHTML+=`<details class="note"><summary>${warnings.length} import notes / excluded duties</summary><ul>${warnings.map(w=>'<li>'+esc(w)+'</li>').join('')}</ul></details>`;
+ let html=`<div class="section-head"><div class="section-head-title">Calendar · shared roster dates</div></div><p class="note">Duty rows use each pilot’s base dates. Overlap entries use the airport’s local date.</p><div class="cal-wrap"><div class="cal-scroll"><div class="cal-table"><div class="cal-head"><div class="ch">Date</div><div class="ch">${esc(a.name)}</div><div class="ch">${esc(b.name)}</div><div class="ch">Overlap</div></div>`;
+ if(pair.start<=pair.end)for(let d=pair.start;d<=pair.end;d=dayAdd(d,1)){const ovs=pair.ovs.filter(o=>localDate(o.start,o.port)<=d&&localDate(o.end-1,o.port)>=d);html+=`<div class="cal-row ${ovs.length?'has-overlap':''}"><div class="cell"><div class="date-num">${+d.slice(8)}</div><div class="date-day">${new Date(d+'T12:00Z').toLocaleDateString('en-AU',{timeZone:'UTC',weekday:'short',month:'short'})}</div></div><div class="cell cell-pilot">${rowDisplay(a,d)}</div><div class="cell cell-pilot">${rowDisplay(b,d)}</div><div class="cell cell-overlap">${ovs.map(o=>{const s=Math.max(o.start,instant(d,'0000',o.port)),e=Math.min(o.end,instant(dayAdd(d,1),'0000',o.port));return `<div class="ov-block"><div class="ov-port">${o.port}</div><div class="ov-time">${clock(s,o.port)} – ${localDate(e,o.port)!==d?'24:00':clock(e,o.port)}</div><div class="ov-dur">${duration((e-s)/60000)}${o.assumed?' · assumed':''}</div></div>`;}).join('')||'—'}</div></div>`;}
+ document.getElementById('cal-section').innerHTML=html+'</div></div></div>';}
+function printReport(){window.print();}
 renderUploadGrid();
+
 </script>
 </body>
 </html>
